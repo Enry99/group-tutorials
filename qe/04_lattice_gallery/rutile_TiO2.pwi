@@ -1,0 +1,41 @@
+! rutile (C4, P4_2/mnm No. 136): TiO2. Same for SnO2, MnO2.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'rutile_TiO2'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 6               ! simple tetragonal: a, a, c
+  A     = 4.594           ! Angstrom, exp.
+  C     = 2.959           ! Angstrom, exp.
+  nat   = 6
+  ntyp  = 2
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Ti    47.867  Ti.pbe-spn-rrkjus_psl.1.0.0.UPF
+O     15.999  O.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+5 5 8   0 0 0
+
+ATOMIC_POSITIONS crystal
+Ti  0.0     0.0     0.0
+Ti  0.5     0.5     0.5
+O   0.3048  0.3048  0.0       ! (u, u, 0) with u = 0.3048
+O   0.6952  0.6952  0.0       ! (-u, -u, 0)
+O   0.8048  0.1952  0.5       ! (1/2+u, 1/2-u, 1/2)
+O   0.1952  0.8048  0.5       ! (1/2-u, 1/2+u, 1/2)

@@ -1,0 +1,6 @@
+EOS          : birchmurnaghan
+V0           : 16.1434 A^3 per cell (16.1434 A^3/atom)
+E0           : -537.610545 eV per cell (-537.610545 eV/atom)
+B0           : 81.4 GPa
+scale s0     : 0.99305  (multiply celldm(1)/A of the template by this)
+a0 (cF)      : 4.0119 A  (7.5814 bohr)

@@ -1,0 +1,11 @@
+# Runs happen in a copy of a code folder (e.g. qe_runs/), not in the clone.
+# These rules only protect against committing run products by mistake.
+WORK/
+CRASH
+*.out
+*.err
+*.pwo
+!**/reference/*.pwo
+*.extxyz
+!**/reference/*.extxyz
+__pycache__/

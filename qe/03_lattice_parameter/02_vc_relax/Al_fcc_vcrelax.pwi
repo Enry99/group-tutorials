@@ -1,0 +1,52 @@
+! fcc Al: lattice parameter from a variable-cell relaxation.
+! Same physics as 01_eos in one run. It starts from a deliberately wrong
+! a = 4.10 A: the stress pushes the cell to equilibrium.
+
+&CONTROL
+  calculation   = 'vc-relax'           ! relax atoms AND cell
+  prefix        = 'Al'
+  outdir        = './WORK'
+  pseudo_dir    = '/leonardo/pub/userexternal/epedrett/pseudo'
+  etot_conv_thr = 1.0d-6               ! Ry: energy change between steps
+  forc_conv_thr = 1.0d-4               ! Ry/bohr: max force (zero here by symmetry)
+  nstep         = 200                  ! default is 50: always set it
+  max_seconds   = 1700
+  disk_io       = 'low'
+/
+
+&SYSTEM
+  ibrav       = 2
+  A           = 4.10                   ! starting guess
+  nat         = 1
+  ntyp        = 1
+  ecutwfc     = 40                     ! cutoff converged for the PRESSURE (02)
+  ecutrho     = 320
+  occupations = 'smearing'
+  smearing    = 'gaussian'
+  degauss     = 0.00735
+  vdw_corr    = 'dft-d3'
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-10                   ! the stress needs a well converged density
+/
+
+&IONS
+  ion_dynamics = 'bfgs'                ! &IONS is required for relax and vc-relax
+/
+
+&CELL
+  cell_dynamics  = 'bfgs'              ! &CELL is required for vc-relax
+  press          = 0.0                 ! target pressure (kbar)
+  press_conv_thr = 0.5                 ! kbar
+  cell_dofree    = 'ibrav'             ! keep the fcc shape: only A changes
+/
+
+ATOMIC_SPECIES
+Al  26.982  Al.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+20 20 20   0 0 0
+
+ATOMIC_POSITIONS crystal
+Al  0.0  0.0  0.0

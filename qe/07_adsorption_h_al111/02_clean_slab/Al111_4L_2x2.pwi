@@ -1,0 +1,61 @@
+! written by: build_slab.py Al fcc111 --a0 4.012 --layers 4 --repeat 2 2 --ecut 60 480 --template ../../03_lattice_parameter/01_eos/Al_fcc.pwi --kspacing 0.135
+&CONTROL
+   calculation      = 'relax'
+   nstep            = 200
+   tprnfor          = .true.
+   outdir           = './WORK'
+   prefix           = 'Al111_4L_2x2'
+   max_seconds      = 1700
+   etot_conv_thr    = 1e-05
+   forc_conv_thr    = 0.001
+   disk_io          = 'low'
+   pseudo_dir       = '/leonardo/pub/userexternal/epedrett/pseudo'
+/
+&SYSTEM
+   ecutwfc          = 60
+   ecutrho          = 480
+   occupations      = 'smearing'
+   degauss          = 0.00735
+   smearing         = 'gaussian'
+   vdw_corr         = 'dft-d3'
+   ntyp             = 1
+   nat              = 16
+   ibrav            = 0
+/
+&ELECTRONS
+   conv_thr         = 1.6e-07
+   mixing_mode      = 'local-TF'
+   mixing_beta      = 0.3
+/
+&IONS
+   ion_dynamics     = 'bfgs'
+/
+
+ATOMIC_SPECIES
+Al 26.9815385 Al.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+10 10 1  0 0 0
+
+CELL_PARAMETERS angstrom
+5.67382481224086 0.00000000000000 0.00000000000000
+2.83691240612043 4.91367642402305 0.00000000000000
+0.00000000000000 0.00000000000000 21.94898783996634
+
+ATOMIC_POSITIONS angstrom
+Al 0.0000000000 0.0000000000 7.5000000000
+Al 2.8369124061 0.0000000000 7.5000000000
+Al 1.4184562031 2.4568382120 7.5000000000
+Al 4.2553686092 2.4568382120 7.5000000000
+Al 1.4184562031 0.8189460707 9.8163292800
+Al 4.2553686092 0.8189460707 9.8163292800
+Al 2.8369124061 3.2757842827 9.8163292800
+Al 5.6738248122 3.2757842827 9.8163292800
+Al 0.0000000000 1.6378921413 12.1326585600
+Al 2.8369124061 1.6378921413 12.1326585600
+Al 1.4184562031 4.0947303534 12.1326585600
+Al 4.2553686092 4.0947303534 12.1326585600
+Al 0.0000000000 0.0000000000 14.4489878400
+Al 2.8369124061 0.0000000000 14.4489878400
+Al 1.4184562031 2.4568382120 14.4489878400
+Al 4.2553686092 2.4568382120 14.4489878400

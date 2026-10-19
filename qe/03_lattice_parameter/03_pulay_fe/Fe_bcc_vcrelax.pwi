@@ -1,0 +1,54 @@
+! bcc Fe: vc-relax for the Pulay-stress test, same settings as Fe_bcc.pwi.
+! Starts from a = 2.90 A: the cell shrinks by ~3% while the plane-wave set
+! of the starting cell is kept.
+
+&CONTROL
+  calculation   = 'vc-relax'
+  prefix        = 'Fe_vc'
+  outdir        = './WORK'
+  pseudo_dir    = '/leonardo/pub/userexternal/epedrett/pseudo'
+  etot_conv_thr = 1.0d-6
+  forc_conv_thr = 1.0d-4
+  nstep         = 200
+  max_seconds   = 1700
+  disk_io       = 'low'
+/
+
+&SYSTEM
+  ibrav       = 3
+  A           = 2.90                  ! starting guess
+  nat         = 1
+  ntyp        = 1
+  ecutwfc     = 40                    ! the same cutoffs as the E(V) scan you compare with
+  ecutrho     = 320
+  occupations = 'smearing'
+  smearing    = 'gaussian'
+  degauss     = 0.00735
+  nspin       = 2
+  starting_magnetization(1) = 0.4
+  vdw_corr    = 'dft-d3'
+/
+
+&ELECTRONS
+  conv_thr    = 1.0d-10
+  mixing_beta = 0.3
+/
+
+&IONS
+  ion_dynamics = 'bfgs'
+/
+
+&CELL
+  cell_dynamics  = 'bfgs'
+  press_conv_thr = 0.5
+  cell_dofree    = 'ibrav'
+/
+
+ATOMIC_SPECIES
+Fe  55.845  Fe.pbe-spn-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+12 12 12   0 0 0
+
+ATOMIC_POSITIONS crystal
+Fe  0.0  0.0  0.0

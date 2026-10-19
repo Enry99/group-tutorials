@@ -1,0 +1,36 @@
+! bcc (A2, Im-3m No. 229): Fe. Same ibrav for W, Mo, Cr, V, Nb.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'bcc_Fe'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 3               ! bcc; primitive vectors a/2(1,1,1), a/2(-1,1,1), a/2(-1,-1,1)
+  A     = 2.866           ! conventional cubic a (Angstrom), exp.
+  nat   = 1
+  ntyp  = 1
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+  nspin = 2
+  starting_magnetization(1) = 0.4   ! species 1 = Fe
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Fe    55.845  Fe.pbe-sp-van.UPF
+
+K_POINTS automatic
+16 16 16   0 0 0
+
+ATOMIC_POSITIONS crystal
+Fe  0.0  0.0  0.0

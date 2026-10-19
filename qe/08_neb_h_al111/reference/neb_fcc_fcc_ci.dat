@@ -1,0 +1,9 @@
+# NEB fcc -> fcc via hcp, stage 2 (climbing image = 3), NOT converged: stopped at iteration 25 (6 of stage 1 + 19 with the climbing image), error 0.08 eV/A (path_thr 0.05)
+# barrier over the last three iterations: 0.2388, 0.2380, 0.2367 eV
+# reaction coordinate, E - E(first) (eV), error (eV/A)
+      0.0000000000      0.0000000000      0.0106349515
+      0.2309321994      0.0942756807      0.0634882205
+      0.4660092654      0.2367175062      0.0833592109
+      0.6449473530      0.1701702414      0.0890978662
+      0.8189068887      0.0707523589      0.0957207802
+      1.0000000000      0.0000006857      0.0097334041

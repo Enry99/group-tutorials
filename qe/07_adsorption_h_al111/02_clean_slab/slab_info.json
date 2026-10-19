@@ -1,0 +1,22 @@
+{
+ "element": "Al",
+ "surface": "fcc111",
+ "a0": 4.012,
+ "c": null,
+ "layers": 4,
+ "vacuum": 15.0,
+ "repeat": [
+  2,
+  2
+ ],
+ "fixed": 0,
+ "kpts": [
+  10,
+  10,
+  1
+ ],
+ "magmom": null,
+ "area": 27.879339213944935,
+ "template": "../../03_lattice_parameter/01_eos/Al_fcc.pwi",
+ "input": "Al111_4L_2x2.pwi"
+}

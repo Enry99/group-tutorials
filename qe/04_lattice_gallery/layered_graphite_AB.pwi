@@ -1,0 +1,39 @@
+! graphite, AB (Bernal) stacking (P6_3/mmc No. 194). Needs a dispersion correction like MoS2.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'layered_graphite_AB'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 4
+  A     = 2.464           ! Angstrom, exp.
+  C     = 6.711           ! Angstrom, exp. (2 layers)
+  nat   = 4
+  ntyp  = 1
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+  vdw_corr = 'dft-d3'      ! essential here: interlayer binding is dispersion
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+C     12.011  C.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+12 12 4   0 0 0
+
+ATOMIC_POSITIONS crystal
+C   0.0000000000  0.0000000000  0.25
+C   0.0000000000  0.0000000000  0.75
+C   0.3333333333  0.6666666667  0.25
+C   0.6666666667  0.3333333333  0.75

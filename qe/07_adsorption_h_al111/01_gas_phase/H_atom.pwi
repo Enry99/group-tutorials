@@ -1,0 +1,38 @@
+! Isolated H atom in a box: the gas-phase reference for one adsorbed H atom.
+! Same pseudopotential, cutoffs (60/480 Ry) and D3 as the slab runs: only
+! then can the three energies of E_ads be combined.
+
+&CONTROL
+  calculation = 'scf'                   ! one atom: nothing to relax
+  prefix      = 'H_atom'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  disk_io     = 'none'
+  max_seconds = 1700
+/
+
+&SYSTEM
+  ibrav       = 1                       ! cubic box ...
+  A           = 12.0                    ! ... of 12 A: the atom does not see its images
+  nat         = 1
+  ntyp        = 1
+  ecutwfc     = 60                      ! SAME as the slab
+  ecutrho     = 480
+  occupations = 'fixed'                 ! an isolated atom has a gap: no smearing needed
+  nspin       = 2                       ! H has one unpaired electron: spin-polarized,
+  tot_magnetization = 1                 ! with the moment fixed to 1 muB
+  vdw_corr    = 'dft-d3'
+/
+
+&ELECTRONS
+  conv_thr    = 1.0d-6                  ! 1e-6 Ry = 0.01 meV, plenty for one atom; much
+                                        ! tighter values stall on the noise of the empty box
+/
+
+ATOMIC_SPECIES
+H   1.008   H.pbe-kjpaw_psl.1.0.0.UPF
+
+K_POINTS gamma                          ! isolated atom: Gamma only (faster algorithm)
+
+ATOMIC_POSITIONS angstrom
+H   0.000  0.000  0.000

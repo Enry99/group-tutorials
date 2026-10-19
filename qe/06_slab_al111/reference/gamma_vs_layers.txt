@@ -1,0 +1,11 @@
+# Al(111), PBE-D3, 40/320 Ry, k-spacing 0.135 1/A (19x19x1), all atoms relaxed
+# e_bulk = -537.610539 eV/atom (03 vc-relax, a0 = 4.0118 A), bulk d = 2.3162 A
+# layers  E_slab(eV)       gamma(eV/A2)  gamma(J/m2)  dd12(%)  dd23(%)  scf_steps
+      3     -1611.984689      0.0608       0.973    +0.21       -       5
+      4     -2149.536140      0.0650       1.041    +2.03    -0.07     12
+      5     -2687.162017      0.0639       1.024    +2.79    +1.28     14
+      6     -3224.771905      0.0639       1.024    +1.62    +0.63     16
+# dd12, dd23: change of the first and second interlayer distance vs bulk (average of the two surfaces)
+# check of e_bulk: E(6L) - E(5L) = -537.609888 eV, e_bulk = -537.610539 eV (0.65 meV apart)
+# without D3 (3 layers, a0 = 4.0392 A from a vc-relax without D3): gamma = 0.0488 eV/A2 = 0.781 J/m2
+# QE 7.3.1 serial CPU build; 5 and 6 layers were restarted once after max_seconds (restart_mode = 'restart')

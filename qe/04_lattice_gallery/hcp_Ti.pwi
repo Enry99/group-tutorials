@@ -1,0 +1,36 @@
+! hcp (A3, P6_3/mmc No. 194): Ti. Same for Zn, Mg, Co, Zr (different c/a).
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'hcp_Ti'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 4               ! hexagonal: a1 = a(1,0,0), a2 = a(-1/2,sqrt(3)/2,0), a3 = c(0,0,1)
+  A     = 2.951           ! a (Angstrom), exp.
+  C     = 4.686           ! c (Angstrom), exp.; or celldm(3) = c/a = 1.588
+  nat   = 2
+  ntyp  = 1
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Ti    47.867  Ti.pbe-spn-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+11 11 7   0 0 0
+
+ATOMIC_POSITIONS crystal
+Ti  0.3333333333  0.6666666667  0.25
+Ti  0.6666666667  0.3333333333  0.75

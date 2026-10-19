@@ -1,0 +1,42 @@
+! bcc Fe: template for the E(V) scans of the Pulay-stress test (03, section 3).
+! Low cutoff ON PURPOSE: 40 Ry, against 71 Ry suggested by the pseudopotential.
+! make_scan.py --scale multiplies A; --set changes the cutoff for the second scan.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'Fe'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tstress     = .true.
+  max_seconds = 1700
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav       = 3                     ! bcc
+  A           = 2.83                  ! Angstrom (exp. 2.866)
+  nat         = 1
+  ntyp        = 1
+  ecutwfc     = 40                    ! 40: too low on purpose; 90: converged (--set)
+  ecutrho     = 320                   ! 8 x ecutwfc
+  occupations = 'smearing'
+  smearing    = 'gaussian'
+  degauss     = 0.00735
+  nspin       = 2                     ! ferromagnetic Fe
+  starting_magnetization(1) = 0.4
+  vdw_corr    = 'dft-d3'
+/
+
+&ELECTRONS
+  conv_thr    = 1.0d-10
+  mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Fe  55.845  Fe.pbe-spn-rrkjus_psl.1.0.0.UPF   ! pslibrary ultrasoft, 3s3p semicore: a hard pseudo
+
+K_POINTS automatic
+12 12 12   0 0 0                      ! coarse but cheap: both methods use the same grid
+
+ATOMIC_POSITIONS crystal
+Fe  0.0  0.0  0.0

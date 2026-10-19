@@ -1,0 +1,36 @@
+! rocksalt (B1, Fm-3m No. 225): TiC. Same for MgO, NaCl, TiN, FeO.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'rocksalt_TiC'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 2
+  A     = 4.330           ! Angstrom, exp.
+  nat   = 2
+  ntyp  = 2
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Ti    47.867  Ti.pbe-spn-rrkjus_psl.1.0.0.UPF
+C     12.011  C.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+9 9 9   0 0 0
+
+ATOMIC_POSITIONS crystal
+Ti  0.0  0.0  0.0
+C   0.5  0.5  0.5            ! octahedral site of the fcc lattice

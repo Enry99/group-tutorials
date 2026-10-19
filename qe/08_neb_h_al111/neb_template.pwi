@@ -1,0 +1,90 @@
+! neb.x input: template. Replace the placeholders (x y z, nat, ...) with your system.
+! tools/make_neb.py writes a complete file from two relaxed pw.x outputs.
+!
+! Layout: BEGIN ... END around everything; the NEB settings between
+! BEGIN_PATH_INPUT and END_PATH_INPUT; a pw.x input without positions
+! between BEGIN_ENGINE_INPUT and END_ENGINE_INPUT, followed by the positions
+! of each image between BEGIN_POSITIONS and END_POSITIONS.
+
+BEGIN
+BEGIN_PATH_INPUT
+&PATH
+  string_method = 'neb'
+  restart_mode  = 'from_scratch'    ! stage 2: 'restart' (reads <prefix>.path)
+  nstep_path    = 200               ! maximum number of NEB iterations
+  num_of_images = 6                 ! INCLUDING the two end points: 4 images move
+  opt_scheme    = 'broyden'         ! optimizer of the path (QE default)
+  CI_scheme     = 'no-CI'           ! stage 1: no climbing image; stage 2: 'auto'
+  path_thr      = 0.1               ! eV/A, largest force perpendicular to the path:
+                                    ! 0.1 for stage 1, 0.05 for stage 2
+  k_max         = 0.1               ! spring constants (a.u.), QE default;
+  k_min         = 0.1               ! neb.x prints suggested values at the start
+  ds            = 1.0               ! optimizer step (a.u.); 0.5 if the path oscillates
+  !minimum_image = .true.           ! interpolate across the cell boundary by the
+                                    ! shortest vector (atoms close to the cell edge)
+/
+END_PATH_INPUT
+
+BEGIN_ENGINE_INPUT
+! The pw.x settings of the two relaxed end points, unchanged, without
+! calculation, nstep and the relax thresholds (neb.x drives the images).
+&CONTROL
+  prefix      = 'neb'               ! files: neb.path, neb.dat, neb.axsf, WORK/neb_1, ...
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  disk_io     = 'low'
+  max_seconds = 85000               ! ~5% below the walltime (24 h)
+/
+&SYSTEM
+  ibrav       = 0
+  nat         = NAT                 ! placeholder
+  ntyp        = 2
+  ecutwfc     = 60
+  ecutrho     = 480
+  occupations = 'smearing'
+  smearing    = 'gaussian'
+  degauss     = 0.00735
+  vdw_corr    = 'dft-d3'
+/
+&ELECTRONS
+  conv_thr    = 1.0d-8              ! can be looser in stage 1, tighter in stage 2
+  mixing_mode = 'local-TF'
+  mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Al  26.982  Al.pbe-n-kjpaw_psl.1.0.0.UPF
+H    1.008  H.pbe-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+10 10 1  0 0 0
+
+! the cell of the end points, copied at full precision from their .pwi
+CELL_PARAMETERS angstrom
+  x  x  x
+  x  x  x
+  x  x  x
+
+BEGIN_POSITIONS
+FIRST_IMAGE
+! relaxed initial structure (last positions of its .pwo)
+ATOMIC_POSITIONS angstrom
+Al  x  y  z
+Al  x  y  z
+H   x  y  z
+INTERMEDIATE_IMAGE
+! optional: a structure the initial path must pass through (repeat the block
+! for more); the images are spread along the broken line
+ATOMIC_POSITIONS angstrom
+Al  x  y  z
+Al  x  y  z
+H   x  y  z
+LAST_IMAGE
+! relaxed final structure: SAME atoms in the SAME order as FIRST_IMAGE
+ATOMIC_POSITIONS angstrom
+Al  x  y  z
+Al  x  y  z
+H   x  y  z
+END_POSITIONS
+END_ENGINE_INPUT
+END

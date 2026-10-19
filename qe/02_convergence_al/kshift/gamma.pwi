@@ -1,0 +1,49 @@
+! k-point grids on a hexagonal cell: Gamma-centered vs shifted (02, section 5).
+! 3-layer Al(111) slab with one H atom off the high-symmetry sites: no symmetry
+! left except k <-> -k. The cutoff is far too low for real results; it is
+! enough to count k-points and compare samplings (runs take seconds).
+! shifted.pwi differs only in the K_POINTS line.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'gamma'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav       = 0
+  nat         = 4
+  ntyp        = 2
+  ecutwfc     = 15                ! test only (production: 60/480 with H)
+  ecutrho     = 120
+  occupations = 'smearing'
+  smearing    = 'gaussian'
+  degauss     = 0.00735
+  vdw_corr    = 'dft-d3'
+/
+
+&ELECTRONS
+  conv_thr    = 1.0d-9
+  mixing_mode = 'local-TF'
+  mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Al  26.9815  Al.pbe-n-kjpaw_psl.1.0.0.UPF
+H    1.008   H.pbe-kjpaw_psl.1.0.0.UPF
+
+CELL_PARAMETERS angstrom
+2.836912   0.000000   0.000000
+1.418456   2.456837   0.000000
+0.000000   0.000000  19.632658
+
+K_POINTS automatic
+7 7 1  0 0 0                          ! Gamma-centered
+
+ATOMIC_POSITIONS angstrom
+Al  1.418456  0.818946   7.495237
+Al  2.836912  1.637892   9.816329
+Al  0.000000  0.000000  12.137422
+H   1.718456  0.918946  13.137422     ! 0.3 A and 0.1 A away from the fcc hollow

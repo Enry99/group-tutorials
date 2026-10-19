@@ -1,0 +1,36 @@
+! fcc (A1, Fm-3m No. 225): Ni. Same ibrav for Cu, Al, Pt, Au, Pd.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'fcc_Ni'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 2               ! fcc; primitive vectors a/2(-1,0,1), a/2(0,1,1), a/2(-1,1,0)
+  A     = 3.524           ! conventional cubic a (Angstrom), exp.
+  nat   = 1
+  ntyp  = 1
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+  nspin = 2
+  starting_magnetization(1) = 0.4   ! species 1 = Ni
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Ni    58.693  Ni.pbe-spn-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+15 15 15   0 0 0
+
+ATOMIC_POSITIONS crystal
+Ni  0.0  0.0  0.0

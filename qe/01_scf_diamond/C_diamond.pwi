@@ -1,0 +1,47 @@
+! SCF of bulk diamond, 2-atom primitive fcc cell.
+
+&CONTROL
+  calculation = 'scf'                     ! single point: energy, forces, stress
+  prefix      = 'C_diamond'               ! name of the files written in outdir
+  outdir      = './WORK'                  ! folder for wavefunctions/charge
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'   ! folder with the .UPF files
+  tprnfor     = .true.                    ! print forces (zero here by symmetry)
+  tstress     = .true.                    ! print stress and pressure
+  max_seconds = 1700                      ! stop cleanly before the 30 min walltime
+  disk_io     = 'none'                    ! scf: wavefunctions/density not needed afterwards
+/
+
+&SYSTEM
+  ibrav     = 2           ! face-centered cubic Bravais lattice
+  A         = 3.567       ! CONVENTIONAL cubic lattice parameter in Angstrom (exp.)
+                          ! (alternative: celldm(1) = 6.7406, the same in bohr)
+  nat       = 2           ! atoms in the cell
+  ntyp      = 1           ! atomic species
+  ecutwfc   = 60          ! plane-wave cutoff for wavefunctions (Ry)
+  ecutrho   = 480         ! cutoff for the density: 8 x ecutwfc for US/PAW pseudos
+  occupations = 'smearing'  ! fractional occupations: the standard choice, works
+                            ! for metals and insulators (and unknown systems)
+  smearing    = 'gaussian'  ! Gaussian: safe also for insulators (not 'mp', see
+                            ! troubleshooting.md)
+  degauss     = 0.00735     ! smearing width (Ry) = 0.1 eV; see 02_convergence_al
+  ! vdw_corr = 'dft-d3'   ! production runs often add D3; not needed to learn the basics
+/
+
+&ELECTRONS
+  conv_thr    = 1.0d-10   ! SCF threshold on the total energy (Ry). Extensive: for
+                          ! big cells 1d-6..1d-8 is enough (see 00_basics)
+  mixing_beta = 0.7       ! default; lower it (0.1-0.3) if the SCF oscillates
+/
+
+ATOMIC_SPECIES
+C   12.011   C.pbe-n-kjpaw_psl.1.0.0.UPF   ! label, mass (amu), pseudopotential file
+
+! 8x8x8 Monkhorst-Pack grid, Gamma-centered (last three numbers = shifts 0 0 0).
+K_POINTS automatic
+8 8 8   0 0 0
+
+! Positions in crystal coordinates = fractions of the primitive vectors of ibrav=2.
+! Diamond = two fcc sublattices shifted by 1/4 of the cubic diagonal.
+ATOMIC_POSITIONS crystal
+C   0.00  0.00  0.00
+C   0.25  0.25  0.25

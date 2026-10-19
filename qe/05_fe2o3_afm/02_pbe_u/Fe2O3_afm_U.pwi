@@ -1,0 +1,86 @@
+! alpha-Fe2O3 (hematite), 30-atom hexagonal cell, antiferromagnetic, PBE+U+D3.
+! Fe layers perpendicular to c alternate spin: + - + - + - (see README).
+! Two Fe "species" with the same pseudopotential carry the two spin directions.
+
+&CONTROL
+  calculation = 'scf'                   ! first check the magnetic state; then 'relax'/'vc-relax'
+  prefix      = 'Fe2O3_U'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  max_seconds = 13000                   ! for a 4 h walltime
+/
+
+&SYSTEM
+  ibrav     = 4                         ! hexagonal setting of R-3c
+  A         = 5.09                      ! Angstrom (exp. 5.035)
+  C         = 13.77                     ! Angstrom (exp. 13.75)
+  nat       = 30
+  ntyp      = 3                         ! Fe1, Fe2, O
+  ecutwfc   = 60
+  ecutrho   = 480
+  occupations = 'smearing'
+  smearing  = 'gaussian'
+  degauss   = 0.00735
+  vdw_corr  = 'dft-d3'
+  nspin     = 2
+  starting_magnetization(1) =  0.5      ! Fe1: spin up
+  starting_magnetization(2) = -0.5      ! Fe2: spin down
+  starting_magnetization(3) =  0.0      ! O
+/
+
+&ELECTRONS
+  conv_thr        = 1.0d-8
+  mixing_beta     = 0.1                 ! oxides with magnetic d states: small mixing
+  mixing_ndim     = 16                  ! longer mixing history (default 8)
+  electron_maxstep = 300
+/
+
+ATOMIC_SPECIES
+Fe1  55.845  Fe.pbe-sp-van.UPF          ! same file for both Fe species
+Fe2  55.845  Fe.pbe-sp-van.UPF
+O    15.999  O.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+6 6 2   0 0 0
+
+! DFT+U (QE >= 7.1 syntax). U acts on the Fe 3d states of BOTH Fe species.
+! ortho-atomic projectors: forces and stress are available, so relax/vc-relax work.
+! The value depends on the projectors: do not copy U from VASP or Materials Project.
+! 4.2 eV was used in https://doi.org/10.1021/acsanm.2c01847
+HUBBARD {ortho-atomic}
+U  Fe1-3d  4.2
+U  Fe2-3d  4.2
+
+ATOMIC_POSITIONS crystal
+Fe1  0.3333333333  0.6666666667  0.0214894967   ! layer 0, spin up
+Fe2  0.0000000000  0.0000000000  0.1451771700   ! layer 1, spin down
+Fe2  0.6666666667  0.3333333333  0.1881561633   ! layer 1, spin down
+Fe1  0.3333333333  0.6666666667  0.3118438367   ! layer 2, spin up
+Fe1  0.0000000000  0.0000000000  0.3548228300   ! layer 2, spin up
+Fe2  0.6666666667  0.3333333333  0.4785105033   ! layer 3, spin down
+Fe2  0.3333333333  0.6666666667  0.5214894967   ! layer 3, spin down
+Fe1  0.0000000000  0.0000000000  0.6451771700   ! layer 4, spin up
+Fe1  0.6666666667  0.3333333333  0.6881561633   ! layer 4, spin up
+Fe2  0.3333333333  0.6666666667  0.8118438367   ! layer 5, spin down
+Fe2  0.0000000000  0.0000000000  0.8548228300   ! layer 5, spin down
+Fe1  0.6666666667  0.3333333333  0.9785105033   ! layer 0, spin up
+O    0.3612657617  0.0279324283  0.0833333333
+O    0.6666666667  0.6387342383  0.0833333333
+O    0.9720675717  0.3333333333  0.0833333333
+O    0.0000000000  0.6945990950  0.2500000000
+O    0.3054009050  0.3054009050  0.2500000000
+O    0.6945990950  0.0000000000  0.2500000000
+O    0.0279324283  0.3612657617  0.4166666667
+O    0.3333333333  0.9720675717  0.4166666667
+O    0.6387342383  0.6666666667  0.4166666667
+O    0.3612657617  0.3333333333  0.5833333333
+O    0.6666666667  0.0279324283  0.5833333333
+O    0.9720675717  0.6387342383  0.5833333333
+O    0.0000000000  0.3054009050  0.7500000000
+O    0.3054009050  0.0000000000  0.7500000000
+O    0.6945990950  0.6945990950  0.7500000000
+O    0.0279324283  0.6666666667  0.9166666667
+O    0.3333333333  0.3612657617  0.9166666667
+O    0.6387342383  0.9720675717  0.9166666667

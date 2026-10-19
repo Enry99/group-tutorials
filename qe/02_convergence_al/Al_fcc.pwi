@@ -1,0 +1,39 @@
+! fcc Al, 1-atom primitive cell: template for the convergence tests.
+! make_scan.py changes one parameter (cutoff, k-grid or smearing); the rest stays fixed.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'Al'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.                ! pressure converges slower than energy: check it too
+  max_seconds = 1700                  ! debug queue: 30 min walltime
+  disk_io     = 'none'                ! many short scf runs: write nothing
+/
+
+&SYSTEM
+  ibrav       = 2                     ! fcc
+  A           = 4.04                  ! Angstrom (exp. 4.05 at room T)
+  nat         = 1
+  ntyp        = 1
+  ecutwfc     = 40                    ! scanned by make_scan.py --ecut
+  ecutrho     = 320                   ! 8 x ecutwfc (PAW pseudo)
+  occupations = 'smearing'            ! metal: fractional occupations
+  smearing    = 'gaussian'
+  degauss     = 0.00735               ! Ry = 0.1 eV
+  vdw_corr    = 'dft-d3'              ! keep the same setting in everything you compare
+/
+
+&ELECTRONS
+  conv_thr    = 1.0d-10               ! 1 atom: a tight threshold costs nothing
+/
+
+ATOMIC_SPECIES
+Al  26.982  Al.pbe-n-kjpaw_psl.1.0.0.UPF   ! pslibrary 1.0.0 PAW, the SSSP efficiency choice
+
+K_POINTS automatic
+16 16 16   0 0 0                      ! scanned by make_scan.py --kpts
+
+ATOMIC_POSITIONS crystal
+Al  0.0  0.0  0.0

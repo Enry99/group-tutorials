@@ -1,0 +1,12 @@
+# 02 section 5: k-points and energies, Gamma-centered vs shifted grids (QE 7.3.1, CPU)
+# 3-layer Al(111) slab, 15/120 Ry (test only), PBE-D3, Gaussian 0.00735 Ry
+# input                       symmetry           nk(sym)  nk(nosym)  E(sym) Ry         E(nosym) Ry       E(sym)-E(nosym) meV
+kshift/gamma.pwi   7x7x1 0 0 0 No symmetry found       25        25     -119.59474200     -119.59474200     +0.00
+kshift/shifted.pwi 7x7x1 1 1 0 No symmetry found       75        25     -119.59481892     -119.59395457    -11.76
+H off-site         8x8x1 0 0 0 No symmetry found       34        34     -119.59272736     -119.59272736     +0.00
+H off-site         8x8x1 1 1 0 No symmetry found       96        32     -119.59552920     -119.59630108    +10.50
+clean slab         7x7x1 0 0 0 12 Sym. Ops.             8        25     -118.46797934     -118.46797934     +0.00
+clean slab         7x7x1 1 1 0 12 Sym. Ops.            16        25     -118.47635022     -118.47634126     -0.12
+clean slab         8x8x1 0 0 0 12 Sym. Ops.            10        34     -118.47768155     -118.47768155     +0.00
+clean slab         8x8x1 1 1 0 12 Sym. Ops.            20        32     -118.47438298     -118.47437324     -0.13
+# dry runs (nstep = 0), same H off-site structure: 8x4x1 0 0 0 -> 34 k-points (18 with nosym); 6x6x1 0 0 0 -> 20 (20 with nosym)

@@ -1,0 +1,51 @@
+! written by: build_slab.py Al fcc111 --a0 4.012 --layers 6 --template ../03_lattice_parameter/01_eos/Al_fcc.pwi --kspacing 0.135
+&CONTROL
+   calculation      = 'relax'
+   nstep            = 200
+   tprnfor          = .true.
+   outdir           = './WORK'
+   prefix           = 'Al111_6L'
+   max_seconds      = 1700
+   etot_conv_thr    = 1e-05
+   forc_conv_thr    = 0.001
+   disk_io          = 'low'
+   pseudo_dir       = '/leonardo/pub/userexternal/epedrett/pseudo'
+/
+&SYSTEM
+   ecutwfc          = 40
+   ecutrho          = 320
+   occupations      = 'smearing'
+   degauss          = 0.00735
+   smearing         = 'gaussian'
+   vdw_corr         = 'dft-d3'
+   ntyp             = 1
+   nat              = 6
+   ibrav            = 0
+/
+&ELECTRONS
+   conv_thr         = 6e-08
+   mixing_mode      = 'local-TF'
+   mixing_beta      = 0.3
+/
+&IONS
+   ion_dynamics     = 'bfgs'
+/
+
+ATOMIC_SPECIES
+Al 26.9815385 Al.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+19 19 1  0 0 0
+
+CELL_PARAMETERS angstrom
+2.83691240612043 0.00000000000000 0.00000000000000
+1.41845620306021 2.45683821201153 0.00000000000000
+0.00000000000000 0.00000000000000 26.58164639994389
+
+ATOMIC_POSITIONS angstrom
+Al 1.4184562031 0.8189460707 7.5000000000
+Al 0.0000000000 1.6378921413 9.8163292800
+Al 0.0000000000 0.0000000000 12.1326585600
+Al 1.4184562031 0.8189460707 14.4489878400
+Al 0.0000000000 1.6378921413 16.7653171200
+Al 0.0000000000 0.0000000000 19.0816463999

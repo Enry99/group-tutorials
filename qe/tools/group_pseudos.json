@@ -1,0 +1,14 @@
+{
+  "_comment": "Pseudopotentials used in the group's Leonardo inputs (2025-2026).",
+  "H": "H.pbe-kjpaw_psl.1.0.0.UPF",
+  "C": "C.pbe-n-kjpaw_psl.1.0.0.UPF",
+  "N": "N.pbe-n-kjpaw_psl.1.0.0.UPF",
+  "O": "O.pbe-n-kjpaw_psl.1.0.0.UPF",
+  "F": "F.pbe-n-rrkjus_psl.1.0.0.UPF",
+  "Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
+  "P": "P.pbe-n-kjpaw_psl.1.0.0.UPF",
+  "S": "S.pbe-n-kjpaw_psl.1.0.0.UPF",
+  "Ti": "Ti.pbe-spn-rrkjus_psl.1.0.0.UPF",
+  "Fe": "Fe.pbe-sp-van.UPF",
+  "Zn": "Zn.pbe-dnl-kjpaw_psl.1.0.0.UPF"
+}

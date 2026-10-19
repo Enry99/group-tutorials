@@ -1,0 +1,35 @@
+! diamond (A4, Fd-3m No. 227): Si. Same for C, Ge.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'diamond_Si'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 2               ! fcc lattice + 2-atom basis
+  A     = 5.431           ! Angstrom, exp.
+  nat   = 2
+  ntyp  = 1
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Si    28.085  Si.pbe-n-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+8 8 8   0 0 0
+
+ATOMIC_POSITIONS crystal
+Si  0.00  0.00  0.00
+Si  0.25  0.25  0.25

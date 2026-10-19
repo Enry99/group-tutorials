@@ -1,0 +1,48 @@
+! H2 molecule in a box: gas-phase reference for the dissociative adsorption
+! of H2 (07, exercise), and a template for any molecule in a box.
+! Same pseudopotential, cutoffs (60/480 Ry) and D3 as the slab runs: only
+! then can the three energies be combined.
+
+&CONTROL
+  calculation   = 'relax'               ! relax the H-H distance
+  prefix        = 'H2'
+  outdir        = './WORK'
+  pseudo_dir    = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor       = .true.
+  forc_conv_thr = 1.0d-4
+  nstep         = 200                   ! default is 50 for relax: always set it
+  disk_io       = 'low'
+  max_seconds   = 1700
+/
+
+&SYSTEM
+  ibrav       = 1                       ! cubic box ...
+  A           = 12.0                    ! ... of 12 A: >~ 10 A between periodic images
+  nat         = 2
+  ntyp        = 1
+  ecutwfc     = 60                      ! SAME as the slab
+  ecutrho     = 480
+  occupations = 'smearing'              ! same settings as the slab; harmless for
+  smearing    = 'gaussian'              ! a molecule with a large gap
+  degauss     = 0.00735
+  vdw_corr    = 'dft-d3'
+  nspin       = 1                       ! H2 is a closed-shell singlet.
+                                        ! O2 would need nspin = 2, tot_magnetization = 2
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8
+/
+
+&IONS
+  ion_dynamics = 'bfgs'
+/
+
+ATOMIC_SPECIES
+H   1.008   H.pbe-kjpaw_psl.1.0.0.UPF
+
+K_POINTS gamma                          ! isolated molecule: Gamma only (faster algorithm)
+
+ATOMIC_POSITIONS angstrom
+H   0.000  0.000  0.000
+H   0.750  0.000  0.000                 ! start near the PBE bond length (0.75 A)

@@ -1,0 +1,69 @@
+! corundum (D5_1, R-3c No. 167): alpha-Al2O3 in the 30-atom HEXAGONAL cell.
+! Same for alpha-Fe2O3 and Cr2O3 (magnetic: see 05_fe2o3_afm). Slabs along (0001) start from this cell.
+! The hexagonal cell is 3 primitive cells: pw.x prints 'This is a supercell, fractional translations
+! are disabled' and uses 6 instead of 12 symmetry operations. For bulk properties the 10-atom
+! rhombohedral primitive cell (ibrav = 5) is cheaper.
+! Structure lines are commented; the rest is a minimal group-default SCF.
+
+&CONTROL
+  calculation = 'scf'
+  prefix      = 'corundum_Al2O3'
+  outdir      = './WORK'
+  pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
+  tprnfor     = .true.
+  tstress     = .true.
+  disk_io     = 'none'
+/
+
+&SYSTEM
+  ibrav = 4
+  A     = 4.759           ! Angstrom, exp.
+  C     = 12.991          ! Angstrom, exp.
+  nat   = 30
+  ntyp  = 2
+  ecutwfc = 60, ecutrho = 480
+  occupations = 'smearing', smearing = 'gaussian', degauss = 0.00735
+/
+
+&ELECTRONS
+  conv_thr = 1.0d-8, mixing_beta = 0.3
+/
+
+ATOMIC_SPECIES
+Al    26.982  Al.pbe-n-kjpaw_psl.1.0.0.UPF
+O     15.999  O.pbe-n-kjpaw_psl.1.0.0.UPF
+
+K_POINTS automatic
+5 5 2   0 0 0
+
+ATOMIC_POSITIONS crystal
+Al     0.00000000    0.00000000    0.35220000
+Al     0.00000000    0.00000000    0.14780000
+Al     0.66666667    0.33333333    0.68553333
+Al     0.66666667    0.33333333    0.48113333
+Al     0.33333333    0.66666667    0.01886667
+Al     0.33333333    0.66666667    0.81446667
+Al     0.00000000    0.00000000    0.64780000
+Al     0.00000000    0.00000000    0.85220000
+Al     0.66666667    0.33333333    0.98113333
+Al     0.66666667    0.33333333    0.18553333
+Al     0.33333333    0.66666667    0.31446667
+Al     0.33333333    0.66666667    0.51886667
+O      0.30640000    0.00000000    0.25000000
+O      0.00000000    0.30640000    0.25000000
+O      0.69360000    0.69360000    0.25000000
+O      0.97306667    0.33333333    0.58333333
+O      0.66666667    0.63973333    0.58333333
+O      0.36026667    0.02693333    0.58333333
+O      0.63973333    0.66666667    0.91666667
+O      0.33333333    0.97306667    0.91666667
+O      0.02693333    0.36026667    0.91666667
+O      0.69360000    0.00000000    0.75000000
+O      0.00000000    0.69360000    0.75000000
+O      0.30640000    0.30640000    0.75000000
+O      0.36026667    0.33333333    0.08333333
+O      0.66666667    0.02693333    0.08333333
+O      0.97306667    0.63973333    0.08333333
+O      0.02693333    0.66666667    0.41666667
+O      0.33333333    0.36026667    0.41666667
+O      0.63973333    0.97306667    0.41666667
