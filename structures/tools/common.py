@@ -1,6 +1,6 @@
 """Small helpers shared by the scripts in tools/ (not meant to be run)."""
 import numpy as np
-from ase.io import write
+from ase.io import read, write
 
 AMU_TO_G = 1.66053906660e-24      # g
 A3_TO_CM3 = 1.0e-24               # cm^3
@@ -22,6 +22,14 @@ def force_per_atom(pressure_gpa, area_a2, natoms):
     """Force (eV/A) on each of natoms atoms for a pressure (GPa) on an area (A^2)."""
     total_n = pressure_gpa * 1e9 * area_a2 * 1e-20
     return total_n / natoms / EV_PER_A_TO_N
+
+
+def read_structure(path):
+    """ASE read; a LAMMPS data file (.data, atom_style atomic) too, the
+    elements taken from its masses."""
+    if path.endswith(".data"):
+        return read(path, format="lammps-data", atom_style="atomic")
+    return read(path)
 
 
 def extension(fmt):

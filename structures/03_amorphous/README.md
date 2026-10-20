@@ -50,7 +50,7 @@ final: C512H51 (563 atoms), 2.823 g/cm^3
 ```
 
 A new atom is rejected if it is closer than 1.4 × (sum of covalent radii)
-to any atom (`--mult`, the value of `si3n4_doping.py`).
+to any atom (`--mult`, default 1.4).
 
 ## 3. Film for a given slab: keep the lateral cell
 
@@ -76,15 +76,17 @@ irrelevant for a melt-quench. `--specorder Fe Ti O` already contains Fe,
 so the same type numbering works when the film is put on the Fe slab.
 
 Choose `--repeat` so that the number of atoms gives the cell you need: N
-fixes the volume at a given density.
+fixes the volume at a given density. Melt-quench it at constant volume
+(`do_npt 0` in `lammps/03_meltquench`: an `iso` NPT would change the
+lateral cell), give it free surfaces with `anneal_slab.in`, then put it on
+the slab with `interface.py --middle anneal_slab.data` (04).
 
 ## 4. Keep the whole cell: remove formula units
 
 When the cell must not change (it already matches the slab in x, y and
 the thickness is the one you want), `--remove FORMULA` lowers the density
 by deleting whole formula units at random, so the composition stays the
-same. The SiN and SiO₂ notebooks of the group did this with Si₃N₄ and
-SiO₂ units.
+same.
 
 ```bash
 python ../tools/density.py ../bulk/TiO2_rutile.cif --repeat 4 4 6 --target 3.8 \

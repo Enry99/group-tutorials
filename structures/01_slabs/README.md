@@ -59,7 +59,8 @@ python ../tools/slab.py ../bulk/C_diamond.cif --miller 1 1 1 --layers 4 --list
 python ../tools/slab.py ../bulk/C_diamond.cif --miller 1 1 1 --layers 4 --keep-planes 8
 ```
 
-The first prints 12 atomic planes for 4 layers. `--keep-planes 8` keeps the
+The first prints 12 atomic planes for 4 layers (8 of the 4 bilayers, 4
+added by pymatgen). `--keep-planes 8` keeps the
 lowest 8 (4 bilayers): t0 is 6.69 Å thick (3 × 2.06 Å + 0.51 Å, ends on
 complete bilayers), t1 7.72 Å (ends inside bilayers). For the (111)
 surface you usually want t0. Open both in OVITO and count the neighbours
@@ -80,6 +81,8 @@ orthorhombic one:
 python ../tools/slab.py ../bulk/Fe_bcc.cif --miller 1 1 0 --layers 6
 python ../../qe/tools/ortho_cell.py Fe_bcc_110_t0.extxyz --square 20
 ```
+
+(`--square 20`: the supercell with both sides closest to 20 Å.)
 
 ```
 supercell matrix [[1,0,0],[4,3,0],[0,0,1]] x (8,3,1): 6 -> 432 atoms

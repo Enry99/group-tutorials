@@ -60,8 +60,10 @@ def main():
     parser.add_argument("--seed", type=int,
                         help="packmol seed (default: packmol's own, reproducible; -1: random)")
     parser.add_argument("--packmol", default="packmol")
-    parser.add_argument("-o", "--output", default="molecules")
+    parser.add_argument("-o", "--output", default="molecules", help="name without extension")
     args = parser.parse_args()
+    args.output = os.path.splitext(args.output)[0] if args.output.endswith((".xyz", ".extxyz")) \
+        else args.output
 
     if args.cell_from:
         slab = read(args.cell_from)
@@ -110,7 +112,8 @@ def main():
 
     exe = shutil.which(args.packmol)
     if exe is None:
-        print(f"packmol not found ('{args.packmol}'): run  packmol < packmol.inp  yourself")
+        print(f"packmol not found ('{args.packmol}'): put it on PATH (or --packmol PATH) "
+              f"and run again to get {args.output}.extxyz")
         return
     with open("packmol.inp") as fin, open("packmol.log", "w") as flog:
         subprocess.run([exe], stdin=fin, stdout=flog, check=False)

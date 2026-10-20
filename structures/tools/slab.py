@@ -31,7 +31,7 @@ import sys
 import numpy as np
 from ase.geometry import get_layers
 from ase.neighborlist import neighbor_list
-from ase.io import read, write
+from ase.io import read
 from pymatgen.core.interface import label_termination
 from pymatgen.core.surface import SlabGenerator
 from pymatgen.io.ase import AseAtomsAdaptor

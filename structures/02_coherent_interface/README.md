@@ -41,11 +41,12 @@ python ../tools/zsl_interface.py ../bulk/TiO2_rutile.cif 1 1 0 ../bulk/Fe_bcc.ci
     7    7.020   32.266   90.0       226.5       1.30    333
     9   14.330   16.213   90.0       232.3       0.83    336
    11   12.159   20.062   90.0       243.9       1.92    342
+...
 ```
 
 Tolerances: `--length-tol 0.03` and `--angle-tol 0.01` (fractions),
 `--area-tol 0.09`, `--max-area 400` Å². Larger values give more matches
-with more strain. The search takes about 15 s here.
+with more strain. The search takes about 20 s here.
 
 ## 2. Write the interface
 
@@ -70,8 +71,10 @@ Front view (along y) of match 9: three Fe(110) planes (orange), 2.5 Å
 gap, three unit planes of TiO₂(110) (Ti grey, O red).
 
 Thicknesses are in unit planes: 3 Fe(110) planes are 4.05 Å, too thin for
-anything but a test. Use the separate slabs to build a thicker system or a
-sliding interface with `interface.py` (04).
+anything but a test. For a thicker system rerun with more
+`--film-layers`/`--substrate-layers`; for molecules in between or sliding,
+give the two strained slabs to `interface.py` (04): `interface.py
+<..._substrate.extxyz> --top <..._film.extxyz> ...`.
 
 ## Notes
 

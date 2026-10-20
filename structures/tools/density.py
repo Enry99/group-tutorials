@@ -86,7 +86,7 @@ def main():
     report("start", atoms)
     if args.xy:
         if np.abs(atoms.cell.angles() - 90).max() > 1e-6:
-            sys.exit("--xy needs an orthorhombic cell (tools ortho_cell.py first)")
+            sys.exit("--xy needs an orthorhombic cell (qe/tools/ortho_cell.py first)")
         atoms.set_cell([args.xy[0], args.xy[1], atoms.cell[2, 2]], scale_atoms=True)
         report("lateral cell set", atoms)
     if args.remove:

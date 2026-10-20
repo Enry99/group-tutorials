@@ -21,8 +21,9 @@ scripts, see `tools/README.md`). The orthorhombic supercell script is in
 
 ## Setup
 
-The scripts need ase, numpy and, for slabs and interfaces, pymatgen: all
-in the shared Python environment of `../leonardo/README.md`. The
+The scripts need ase, numpy and, for `slab.py` and `zsl_interface.py`,
+pymatgen: all in the shared Python environment of `../leonardo/README.md`
+(own environment: `pip install pymatgen`). The
 lubricant needs packmol; on Leonardo use the group build:
 
 ```bash
@@ -33,12 +34,16 @@ export PATH=/leonardo/pub/userexternal/epedrett/software/packmol-21.2.1:$PATH
 Elsewhere, build it from https://github.com/m3g/packmol (`make`, needs
 gfortran).
 
-All the examples run in seconds on a login node. Commands run from the
-example folder; `-h` prints the usage of every script.
+All the examples run in seconds on a login node. Their commands run from
+the example folder of the clone (the outputs are git-ignored). For your
+own system, work in your project folder and call the scripts by path:
+`T=~/group-tutorials/structures/tools; python $T/slab.py my_bulk.cif ...`;
+`-h` prints the usage of every script.
 
 ## Conventions
 
-- **Atoms sorted along z.** Every script sorts the output along z; in
+- **Atoms sorted along z.** Every script but `packmol.py` sorts the
+  output along z (`interface.py` sorts the molecules); in
   stacked systems each part (bottom slab, molecules, top) is sorted on its
   own. LAMMPS groups are then contiguous id ranges (`group name id <> 1 72`).
 - **LAMMPS data files**: `atom_style atomic`, masses included, atom types
@@ -47,6 +52,7 @@ example folder; `-h` prints the usage of every script.
   even if some elements are absent, so that one `pair_coeff` line fits
   every system of the project.
 - **Look at every structure** in OVITO before using it: terminations,
-  overlaps, vacuum, groups (colour by id range).
+  overlaps, vacuum, groups (Expression selection on the id range, e.g.
+  `ParticleIdentifier >= 1 && ParticleIdentifier <= 72`).
 - Cells: c perpendicular to the surface, vacuum along z. Sliding needs an
   orthorhombic cell with the sliding direction along x or y.

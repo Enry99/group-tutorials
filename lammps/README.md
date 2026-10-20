@@ -49,7 +49,10 @@ bonds across an interface, wear, molecule counts).
 3. In each input you use: the data file (`read_data`) and `variable
    elements`, one element per atom type of the data file, in type order
    (its `Masses` section; `../structures/README.md`, "Conventions").
-4. The jobscripts use the debug queue (30 min), enough for a first test.
+4. Commands in the READMEs that call `../../structures/tools/...` or
+   `../analysis/tools/...` assume the clone: from your copy, call the
+   scripts by their path in the clone.
+5. The jobscripts use the debug queue (30 min), enough for a first test.
    With an MLIP most templates need longer: shorten the times for the
    test, then delete the `--qos` line and set `--time` for the real run.
 

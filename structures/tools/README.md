@@ -2,8 +2,11 @@
 
 Scripts used by the examples. They need ase, numpy and, where noted,
 pymatgen or packmol (`../README.md`, "Setup"); `-h` prints the usage of each
-one. All of them write `.extxyz` by default, other formats with `-f`
-(`-f lammps-data --specorder ...` for LAMMPS).
+one. `slab.py`, `density.py`, `dope.py` and `tip.py` write `.extxyz` by
+default, other formats with `-f` (`-f lammps-data --specorder ...` for
+LAMMPS); `zsl_interface.py` and `packmol.py` write `.extxyz`;
+`interface.py` writes the LAMMPS data file and reads LAMMPS data files
+too.
 
 | Script | What it does |
 |---|---|

@@ -31,7 +31,8 @@ What it does (based on create_interf*.py by E. Pedretti):
      --flip-top turns it upside down (180 deg about x), so that the same
      surface faces the interface (rectangular or hexagonal cells only);
   2. checks that the lateral cells match (--max-strain, default 0.5 %) and
-     strains the top onto the bottom; --isolated-top skips the check and
+     strains the top onto the bottom (and the middle, if it has a cell: a
+     film or a packmol box); --isolated-top skips the check for the top and
      centres the top (a tip, a cluster) above the bottom slab, checking that
      it does not touch its periodic images;
   3. puts the middle --gap A above the bottom and the top --gap A above it,
@@ -48,10 +49,9 @@ import os
 import sys
 
 import numpy as np
-from ase.io import read
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import force_per_atom, sort_z, write_structure  # noqa: E402
+from common import force_per_atom, read_structure, sort_z, write_structure  # noqa: E402
 
 
 def zones(z, edge, widths, from_top):
@@ -115,14 +115,14 @@ def main():
     top_fixed = args.fixed if args.top_fixed is None else args.top_fixed
     top_thermo = args.thermo if args.top_thermo is None else args.top_thermo
 
-    bottom = sort_z(read(args.bottom))
-    top = None if args.no_top else (read(args.top) if args.top else bottom.copy())
+    bottom = sort_z(read_structure(args.bottom))
+    top = None if args.no_top else (read_structure(args.top) if args.top else bottom.copy())
     if args.flip_top and top is not None:
         if not args.isolated_top and not mirror_ok(top.cell[:]):
             sys.exit("--flip-top: the in-plane cell is not symmetric under y -> -y "
                      "(oblique cell); make it orthorhombic first (ortho_cell.py)")
         top.rotate(180, "x", center="COM")
-    middle = sort_z(read(args.middle)) if args.middle else None
+    middle = sort_z(read_structure(args.middle)) if args.middle else None
 
     cell = bottom.cell[:].copy()
     if np.abs(bottom.cell.angles()[:2] - 90).max() > 1e-4:
@@ -150,6 +150,18 @@ def main():
         print(f"top strained onto the bottom cell ({strain:.3%})")
     if top is not None:
         top = sort_z(top)
+    if middle is not None and np.abs(middle.cell[:2, :2]).max() > 0:   # a film or a box
+        strain = np.abs(middle.cell[:2, :2] - cell[:2, :2]).max() / cell[:2, :2].max()
+        if strain > args.max_strain:
+            sys.exit(f"middle: lateral cell differs from the bottom by {strain:.2%} "
+                     f"(> {args.max_strain:.2%}):\n"
+                     f"bottom {np.round(cell[:2, :2], 4).tolist()}\n"
+                     f"middle {np.round(middle.cell[:2, :2], 4).tolist()}")
+        if strain > 1e-9:
+            mcell = middle.cell[:].copy()
+            mcell[:2, :2] = cell[:2, :2]
+            middle.set_cell(mcell, scale_atoms=True)
+            print(f"middle strained onto the bottom cell ({strain:.3%})")
 
     # stack along z
     bottom.positions[:, 2] -= bottom.positions[:, 2].min()

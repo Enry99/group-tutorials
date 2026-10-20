@@ -25,7 +25,8 @@ packmol: Success! 593 atoms -> water.extxyz
 ```
 
 The first molecule (H₂O) fills the box at 1.0 g/cm³ together with the
-others (10 O₂). Molecules can also be files (`C12H26.xyz`). The box has the
+others (10 O₂). Molecules can also be files (`C12H26.xyz`, any format ASE
+reads, e.g. built in Avogadro or from PubChem). The box has the
 lateral cell of the slab; its height sets the film thickness. packmol
 uses its default seed, so the same command gives the same box; `--seed -1`
 for a random one (independent samples). The real
@@ -40,6 +41,7 @@ python ../tools/interface.py Fe110.extxyz --middle water.extxyz --load 1.0 \
 ```
 
 ```
+top strained onto the bottom cell (0.000%)
 1457 atoms (432 bottom, 593 middle, 432 top), cell [19.8562 21.0607 48.3663] A -> Fe_water_Fe.data
 group layer_bot   id <> 1 72
 group thermo_bot  id <> 73 288
@@ -68,6 +70,10 @@ Layout, from the bottom (thicknesses from the outer surface of each slab):
 | `thermo_top` | | `--top-thermo` (= `--thermo`) | thermostat |
 | `slide_top` | optional, `--top-slide` Å | 0 | moved (sliding) |
 | `layer_top` | outermost atoms of the top slab | `--top-fixed` (= `--fixed`) | load (and sliding) |
+
+Unions: `sub_bot`, `sub_top` the whole slabs; `intercalate` = `surf_bot`
++ `molecules` + `surf_top` (NVE); `mobile` = every integrated atom (for
+`velocity create`).
 
 ![groups](reference/Fe_water_Fe_front.png)
 
@@ -109,7 +115,9 @@ z = 0, `layer_top` starts at 38.37 Å, above `thermo_top` (36.34 Å).
   (`lammps/07_reactive`). The groups are those of the bottom slab and
   `molecules`.
 - **Film instead of molecules.** `--middle` takes any structure with the
-  same lateral cell, e.g. an amorphous film from a melt-quench (03).
+  same lateral cell (checked, and strained onto the slab within
+  `--max-strain`), also a LAMMPS data file, e.g. an amorphous film from a
+  melt-quench (03, section 3).
 - **Type order.** With a MLIP give the full element list of the model in
   `--specorder` (e.g. `Fe C O H P Zn S`), so the same `pair_coeff` works for
   every system of the project.

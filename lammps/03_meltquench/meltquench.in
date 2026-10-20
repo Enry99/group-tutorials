@@ -5,7 +5,7 @@
 #   3. quench   Tmelt -> T0           at the quench rate
 #   4. anneal   T0                    for t_anneal
 #   5. (optional) NPT at T0 and P: the potential chooses the density
-# Usage: sbatch job.sh meltquench.in      Needs: aC_start.data (structures/03_amorphous)
+# Usage: sbatch job.sh meltquench.in      Needs: aC_start.data (density.py command in the README)
 
 # ---------- settings ----------
 variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)

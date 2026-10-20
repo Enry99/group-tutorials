@@ -15,6 +15,8 @@ python ../tools/tip.py ../bulk/C_diamond.cif --radius 15 --passivate H:1.0 -o C_
 python ../tools/tip.py ../bulk/C_diamond.cif --radius 15 --passivate H:0.5 OH:0.5 -o C_tip_HOH.extxyz
 ```
 
+Output of the second command:
+
 ```
 hemisphere R = 15.0 A: 1255 atoms (removed 36 with CN < 2); bulk CN 4
 passivated 197 of 209 undercoordinated surface atoms with H (12 skipped: too close to others)
