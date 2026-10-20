@@ -37,11 +37,8 @@ pair_style      mliap unified ${model} 0
 pair_coeff      * * ${elements}
 
 # ---------- load balance (several GPUs: jobscripts/lmp_node.sh; no effect on 1 GPU) ----------
-# Subdomains are full-height columns (processors * * 1): compression along
-# z does not move atoms between them and no GPU holds only vacuum. The
-# columns are balanced in x, y by atom count and follow the atoms during
-# sliding ("weight neigh" is skipped with Kokkos on GPUs). See
-# troubleshooting.md, "GPU out of memory".
+# Full-height columns (processors * * 1) balanced in x, y by atom count:
+# ../troubleshooting.md, "GPU out of memory".
 balance         1.0 shift xy 10 1.1
 fix             lb all balance 1000 1.1 shift xy 10 1.1   # every 1000 steps, if imbalance > 10 %
 

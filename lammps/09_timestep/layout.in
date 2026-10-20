@@ -26,7 +26,7 @@ variable  fixed     string layer_bot      # fixed groups (forces zero, not integ
 variable  thermo_g  string "thermo_bot thermo_top"   # thermostatted groups, one thermostat each
 variable  load_g    string layer_top      # group with the load
 variable  rigid     equal  0              # 1: load group as a rigid body (fix rigid/nve single)
-variable  P         equal  1.0            # GPa on lx*ly (0: no load)
+variable  P         equal  1.0            # GPa on lx*ly (0: no load); for a tip, P x pi R^2/(lx*ly)
 variable  T         index  300            # K
 variable  dt        index  0.5            # fs (index: set it with -var dt 1.0)
 variable  mH        index  0              # > 0: mass of the H type, e.g. 2.014 (deuterium)

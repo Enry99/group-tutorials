@@ -6,9 +6,12 @@ the load-displacement curve, the friction force of a single contact and
 the damage (plastic zone, transfer of atoms, wear). From the group runs of
 diamond tips on SiN.
 
-The system comes from `structures/05_tip`: `Fe_tip_on_Fe.data`, an Fe
-hemisphere (R = 12 Å, 333 atoms) on Fe(110) (1800 atoms), 4 Å apart, and
-`Fe_tip_on_Fe.groups.lmp`. Built with:
+The system, built with the tools of `structures/05_tip` (the example
+there is a C tip; here an Fe one): `Fe_tip_on_Fe.data`, an Fe hemisphere
+(R = 12 Å, 333 atoms) on Fe(110) (1800 atoms), 4 Å apart, and
+`Fe_tip_on_Fe.groups.lmp`. To adapt it: your data and groups files,
+then `model`, `elements`, `T`, `area` (πR² printed by `tip.py`), depth,
+load and speed in the settings blocks. Built with:
 
 ```bash
 python ../../structures/tools/tip.py ../../structures/bulk/Fe_bcc.cif --radius 12 -o Fe_tip.extxyz
@@ -46,7 +49,7 @@ sbatch job.sh 02_scratch.in
 atoms: the load P on the flat-face area (`area`, πR² printed by `tip.py`).
 Stages: thermalization at zero load, load ramp, hold, sliding of
 `slide_top` along x at `v` (after `t_acc`), its y and z free. Friction:
-`v_fxtip` = `fcm(slide_top,x)`.
+`v_fxtip` = `fcm(slide_top,x)`, negative when it opposes the motion.
 
 The nominal pressure on the flat face is not the contact pressure, which
 is much higher and changes as the contact grows: report the total normal

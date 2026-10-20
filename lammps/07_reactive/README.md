@@ -21,7 +21,7 @@ python ../tools/interface.py Fe110.extxyz --no-top --middle water.extxyz --vacuu
 sbatch job.sh highT.in
 ```
 
-- `boundary p p f` and `fix wall/reflect zhi EDGE`: the molecules stay in
+- `boundary p p f` and `fix wall/reflect zlo EDGE zhi EDGE`: the molecules stay in
   the box (z is not periodic, so the bottom of the slab does not see the
   molecules through the periodic image).
 - Thermostats on `thermo_bot` and on `molecules`; `surf_bot` is NVE, so the
@@ -63,8 +63,9 @@ molecule temperature in the first 0.05 ps is the packed water relaxing
 (no minimization before the MD). The counts stay at 191 H₂O, 0 OH, 0 H₂:
 no reaction in 2 ps at 800 K (production holds are hundreds of ps). The
 final minimization stopped with `linesearch alpha is zero` after 2240
-iterations (force two-norm 777 → 18 kcal/mol/Å): check `fmax` in the
-log before using the minimized structure. Log in `reference/`.
+iterations (force two-norm 777 → 18 kcal/mol/Å): check `Force max
+component` in the minimization statistics of the log before using the
+minimized structure. Log in `reference/`.
 
 ![high-temperature run](reference/highT_cpu-serial.png)
 

@@ -22,7 +22,7 @@ sbatch job.sh deposition.in
 
 - `fix deposit`: `ncycle × nper` insertions of type `type_dep`, one every
   `every` steps, in a 5 Å slab `zin` Å above the surface, with velocity
-  `−vz` along z. The thermal speed √(3k_BT/m) is 9.4 Å/ps for Si at 1000 K;
+  `−vin` along z. The thermal speed √(3k_BT/m) is 9.4 Å/ps for Si at 1000 K;
   higher speeds model energetic (PVD, ion) deposition.
 - Molecules: `molecule` command with a molecule file and `mol` in `fix
   deposit` (commented lines in the input; molecule file format in the
@@ -43,9 +43,11 @@ sbatch job.sh deposition.in
   a non-periodic face is lost and the run stops (`ERROR: Lost atoms`, met
   with only the top wall).
 - Size: the film grows by about N/(n A) (8.5 Å for 100 Si on 236 Å²).
-  The insertion region must stay above it, with vacuum above in the data
-  file: otherwise `WARNING: One or more particle depositions were
-  unsuccessful` and fewer atoms are inserted.
+  The insertion region must stay above it (otherwise `WARNING: One or
+  more particle depositions were unsuccessful` and fewer atoms are
+  inserted) and inside the box: `zin` + 5 Å must fit in the vacuum of the
+  data file (30 Å here), else `ERROR: Deposition region extends outside
+  simulation box`.
 - The loop: `variable icycle loop`, `label`, `run`, `next icycle`, `jump
   SELF cycle`. The `next` line is what ends it: without it the loop runs
   until the walltime and the final `write_data` is never reached.

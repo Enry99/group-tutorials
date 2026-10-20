@@ -12,7 +12,8 @@
 #   v_dxH                largest H displacement in one step (A)
 #   c_ts_nfree, v_nH2    free H atoms and H2 molecules (spurious dissociation)
 # and at the end the line "TS_RESULT ..." (drift, mean temperatures).
-# rdf_<tag>.txt: H-X and H-H radial distribution, averaged over the run.
+# rdf_<tag>.txt: H-all and H-H radial distribution, averaged over the run
+# (check_dt.py derives H-X from them).
 
 # ---------- settings ----------
 variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
@@ -20,7 +21,8 @@ variable  elements  string "CHANGE_ME"    # element of each atom type, in type o
 variable  tH        equal  CHANGE_ME      # atom type of H
 variable  start     string equil.restart
 variable  fixed     string ts_none        # as in equil.in
-variable  dt        index  0.5            # fs (index: set it with -var dt 1.0)
+variable  dt        index  0.5            # fs (index: set it with -var dt 1.0); in formulas,
+                                          # dt without v_ is the timestep in ps
 variable  mH        index  0              # > 0: mass of the H type, e.g. 2.014 (deuterium); 0: as it is
 variable  tag       index  nve_dt${dt}    # name of the output files
 variable  t_run     equal  5              # ps

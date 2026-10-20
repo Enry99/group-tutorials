@@ -11,6 +11,12 @@ The system and its groups come from `structures/04_sliding_interface`
 (`interface.py`): `Fe_water_Fe.data` (Fe(110) / 191 H₂O + 10 O₂ / Fe(110),
 1457 atoms) and `Fe_water_Fe.groups.lmp`.
 
+To adapt it: your data and groups files from `interface.py` (`read_data`,
+`include` of the groups), then in the settings block `model`, `elements`,
+`T`, the load `P` and the speed `v`; timestep 0.5 fs with H. Sliding
+speeds in MD are far above experiment: check that the interface
+temperature (`c_temp_int`) stays near T, and report v.
+
 | Group | Role |
 |---|---|
 | `layer_bot` | fixed: `setforce 0 0 0`, no integrator |
@@ -31,7 +37,9 @@ sbatch job.sh 01_load.in
    released when the surfaces settle on the molecules (only the
    thermo layers have a thermostat).
 2. Load ramp P0 → P (linear in the step).
-3. Hold at P: wait until the gap (`v_gap`) is stable.
+3. Hold at P: wait until the mean gap (`v_gap`) is stable. The gap
+   oscillates with the motion of the top block as a whole (a few ps
+   here): average over several periods.
 
 The force per atom is computed in the input from P, the cell area and the
 number of atoms of `layer_top`, so P can be changed there. Output columns:
@@ -48,7 +56,7 @@ sbatch job.sh 02_slide.in       # when 01_load has finished (load.restart)
 `layer_top` moves along x at `v` (10 m/s = 0.1 Å/ps), after a linear
 acceleration over `t_acc`; z is free under the load, so the gap can
 change. `reset_timestep 0` at the start: time 0 = start of sliding,
-sliding distance = v t (minus the acceleration).
+sliding distance = v (t − t_acc/2) after the acceleration.
 
 - Friction force: `f_load[1]` (eV/Å). Shear stress τ = −f_load[1]/(lx ly)
   × 160.2 GPa (the minus: the force of the system on the top layer opposes
@@ -61,17 +69,20 @@ sliding distance = v t (minus the acceleration).
 
 ## Variants
 
-- **Brake or velocity ramps**: redefine `variable vx` (e.g.
-  `v_vA*(1-(step-s1)/n)` to stop in n steps), as in the group SiN runs.
+- **Brake or velocity ramps**: redefine `variable vx`, e.g. to stop in n
+  steps from step s1: `variable s1 equal $(step)` and `variable vx equal
+  v_vA*ternary(step-v_s1<v_n,1-(step-v_s1)/v_n,0)` (group SiN runs).
 - **Rigid top layer** (the outer layer moves as one body): `fix rigid/nve
   single` on `layer_top` with `addforce`, and the sliding on a second
-  group below it (`slide_top`): the scheme of `06_indentation/02_scratch.in`.
-- **Lift-off or pull-off**: drive `layer_top` up with `fix move linear 0 0
-  vz units box` after removing the load.
+  group below it (`slide_top`, from `interface.py --top-slide`): the
+  scheme of `06_indentation/02_scratch.in`.
+- **Lift-off or pull-off**: after removing the load, redefine `fix slide`
+  (same ID, so `layer_top` keeps one integrator) as `fix slide layer_top
+  move linear 0 0 vz units box`.
 - **Density profiles during the run**: `compute chunk/atom bin/1d z lower
   0.5` + `fix ave/chunk ... density/number` for each species group.
-- **No molecules**: drop `molecules` and `temp_mol` (groups file from
-  `interface.py` without `--middle`).
+- **No molecules**: drop `molecules`, `temp_mol` and `c_temp_mol` in
+  `thermo_style` (groups file from `interface.py` without `--middle`).
 
 ## Local check (reduced settings)
 
@@ -83,7 +94,7 @@ t_therm 10, t_block 5, t_ramp 20, t_hold 20 ps; t_acc 5, t_slide 50 ps.
 Serial CPU build, about 4 min for each input.
 
 - 01: minimization, 2 thermalization blocks, ramp to 1 GPa, hold. During
-  the hold `f_load[3]` averages to 2.62 eV/Å against P·A = 2.61 eV/Å, and
+  the hold `f_load[3]` averages to 2.67 eV/Å against P·A = 2.61 eV/Å, and
   the gap is 34.9 ± 0.2 Å; thermostatted layers at 300 ± 20 K.
 - 02: `layer_top` moves at 0.1 Å/ps after the 5 ps acceleration; the gap
   stays at 34.6-35.1 Å. The friction force is zero within the noise for

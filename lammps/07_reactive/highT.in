@@ -6,8 +6,8 @@
 #
 # Groups: layer_bot fixed; thermo_bot thermostat; surf_bot NVE (the
 # reacting surface); molecules thermostat (the heat of reaction goes out
-# through the molecules and thermo_bot). A reflecting wall at the top of the
-# box keeps the molecules in.
+# through the molecules and thermo_bot). Reflecting walls at the top and
+# bottom of the box keep the molecules (and H diffusing in the slab) in.
 
 # ---------- settings ----------
 variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
@@ -24,7 +24,7 @@ variable  do_min    equal  1              # 1: minimize at the end (structure fo
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
 atom_style      atomic
-boundary        p p f                     # z not periodic: the wall closes the box at the top
+boundary        p p f                     # z not periodic: the walls close the box
 processors      * * 1                     # no cut along z (several GPUs, see "load balance" below)
 read_data       Fe_water.data
 include         Fe_water.groups.lmp
@@ -34,11 +34,8 @@ pair_style      mliap unified ${model} 0
 pair_coeff      * * ${elements}
 
 # ---------- load balance (several GPUs: jobscripts/lmp_node.sh; no effect on 1 GPU) ----------
-# Subdomains are full-height columns (processors * * 1): compression along
-# z does not move atoms between them and no GPU holds only vacuum. The
-# columns are balanced in x, y by atom count and follow the atoms during
-# sliding ("weight neigh" is skipped with Kokkos on GPUs). See
-# troubleshooting.md, "GPU out of memory".
+# Full-height columns (processors * * 1) balanced in x, y by atom count:
+# ../troubleshooting.md, "GPU out of memory".
 balance         1.0 shift xy 10 1.1
 fix             lb all balance 1000 1.1 shift xy 10 1.1   # every 1000 steps, if imbalance > 10 %
 
@@ -67,7 +64,7 @@ compute         temp_surf surf_bot temp/com
 
 fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
 fix             nve_surf  surf_bot    nve
-fix             wall      all wall/reflect zhi EDGE
+fix             wall      all wall/reflect zlo EDGE zhi EDGE
 fix             nvt_bot   thermo_bot  nvt temp ${T0} ${Th} ${tdamp}
 fix_modify      nvt_bot   temp temp_tbot
 fix             nvt_mol   molecules   nvt temp ${T0} ${Th} ${tdamp}

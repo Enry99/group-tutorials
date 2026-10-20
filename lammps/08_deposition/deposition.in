@@ -12,14 +12,16 @@ variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP fo
 variable  elements  string "Si"           # element of each atom type, in the order of the data file
 variable  type_dep  equal  1              # atom type deposited
 variable  T         equal  1000           # K, substrate
-variable  vz        equal  9.4            # A/ps towards the surface: sqrt(3 kB T/m) for Si at 1000 K
+variable  vin       equal  9.4            # A/ps towards the surface: sqrt(3 kB T/m) for Si at 1000 K
 variable  every     equal  2000           # steps between two insertions (2 ps)
 variable  ncycle    equal  10             # cycles ...
 variable  nper      equal  10             # ... of nper insertions each (here 100 atoms in 200 ps)
 variable  zin       equal  25.0           # A above the top of the substrate where atoms are inserted
-# The film grows by about N/(n A): 100 Si (n = 0.05 atoms/A^3) on 236 A^2 = 8.5 A.
-# Keep the insertion region well above the final film (zin, and the vacuum of
-# the data file above it), or the insertions fail (WARNING: One or more particle
+# The insertion region (zin to zin + 5 A above the substrate) must fit in the
+# vacuum of the data file (30 A here: zin up to 25), else "ERROR: Deposition
+# region extends outside simulation box". The film grows by about N/(n A):
+# 100 Si (n = 0.05 atoms/A^3) on 236 A^2 = 8.5 A. Keep the region well above
+# the final film, or insertions fail (WARNING: One or more particle
 # depositions were unsuccessful).
 variable  rcut      equal  3.0            # A, "no neighbour within rcut" = free atom
 
@@ -36,11 +38,8 @@ pair_style      mliap unified ${model} 0
 pair_coeff      * * ${elements}
 
 # ---------- load balance (several GPUs: jobscripts/lmp_node.sh; no effect on 1 GPU) ----------
-# Subdomains are full-height columns (processors * * 1): compression along
-# z does not move atoms between them and no GPU holds only vacuum. The
-# columns are balanced in x, y by atom count and follow the atoms during
-# sliding ("weight neigh" is skipped with Kokkos on GPUs). See
-# troubleshooting.md, "GPU out of memory".
+# Full-height columns (processors * * 1) balanced in x, y by atom count:
+# ../troubleshooting.md, "GPU out of memory".
 balance         1.0 shift xy 10 1.1
 fix             lb all balance 1000 1.1 shift xy 10 1.1   # every 1000 steps, if imbalance > 10 %
 
@@ -62,11 +61,13 @@ fix             nve_dep   deposited   nve
 # N atoms, type, every M steps, seed; "near": minimum distance from other atoms;
 # "id next": IDs never reused after a deletion (default: max ID + 1)
 fix             dep deposited deposit $(v_ncycle*v_nper) ${type_dep} ${every} 48291 &
-                region inject near 2.0 vz -${vz} -${vz} units box id next
+                region inject near 2.0 vz -${vin} -${vin} units box id next
 # Molecules instead of atoms (e.g. SiH4 from a molecule file, see README):
 #   molecule      sih4 SiH4.mol
 #   fix           dep deposited deposit N 0 ${every} 48291 region inject near 2.0 &
-#                 mol sih4 vz -${vz} -${vz} units box id next
+#                 mol sih4 vz -${vin} -${vin} units box id next
+# (c_cn==0 below is never true for a molecule: molecules that bounce back
+# stay; delete them with a criterion of their own, as for H2 below)
 compute         temp_dep deposited temp
 compute_modify  temp_dep dynamic/dof yes      # the number of atoms changes
 
@@ -77,6 +78,7 @@ compute         cn all coord/atom cutoff ${rcut}
 variable        is_free atom "c_cn==0 && vz>0 && z>v_ztop+5.0"
 group           free dynamic all var is_free every ${every}
 # For H2 (or N2) products, as in the CVD runs of the group:
+#   group       atom_H type <H type>
 #   compute     cn_HH atom_H coord/atom cutoff 0.9 group atom_H
 #   variable    is_free atom "type==<H type> && c_cn_HH==1"
 

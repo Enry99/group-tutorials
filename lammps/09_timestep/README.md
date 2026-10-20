@@ -40,14 +40,17 @@ at the smallest dt, the timestep is fine.
 ## How to run (Leonardo)
 
 Set `model`, `elements`, `tH` (type of H) and the start file in the
-inputs, the account in `job.sh` and `job_scan.sh`.
+inputs (`fixed` the same in `equil.in` and `nve.in`), the account in
+`job.sh` and `job_scan.sh`. After the jobs, `check_dt.py` prints the
+table and writes `dt_check.csv/png` (`-o`); `--ref` sets the reference
+dt (default the smallest), `--skip` the ps left out at the start.
 
 ```bash
 # A. any system: bulk, film between two fixed layers, gas
 #    (equil.in: start, fixed, T; e.g. fixed "layer_bot layer_top")
 jid=$(sbatch --parsable job.sh equil.in)
 sbatch --dependency=afterok:$jid job_scan.sh nve.in
-python check_dt.py "nve_dt*.log"
+python check_dt.py "nve_dt*.log"            # after the jobs have finished
 
 # B. interface at load, from the restart at the end of your load stage
 #    (layout.in: start, group names, P; rigid 1 if layer_top is a rigid body)
@@ -62,8 +65,9 @@ sbatch --array=3 job_scan.sh nve.in 300 2.014
   variables); the rest is in the settings block of the input.
 - `equil.in` (5 ps at 0.25 fs) may not fit the 30 min of the debug queue
   for a large system: delete the `--qos` line of `job.sh`.
-- Cost: `t_run`/dt steps per run (5 ps: 20000 steps at 0.25 fs, 5000 at
-  1 fs); the `ns/day` column of `check_dt.py` gives the speed of each dt.
+- Cost: `t_run`/dt steps per run (`nve.in` 5 ps: 20000 steps at 0.25 fs,
+  5000 at 1 fs; `layout.in` 10 ps); the `ns/day` column of `check_dt.py`
+  gives the speed of each dt.
 - `check_dt.py` needs numpy and matplotlib (the shared env has both).
 
 ## Cases worth testing
@@ -99,7 +103,10 @@ Take the cases at the edge of what you run in production:
 - verdict: `FAIL` (error or lost atoms, `Dangerous builds`, extra heating
   above `--fail-heat` 50 K/ns), `WARN` (extra heating above `--warn-heat`
   5 K/ns, `conv` > 2, temperatures, counts or peaks different from the
-  reference), else `PASS`. The thresholds are choices: set them from the
+  reference), else `PASS`. Extra heating counts only when larger than 3
+  standard errors: a short run can hide it (0.75 fs in the interface
+  check below). The H-X peak is searched below `--rmax-hx` (1.7 Å; ~2.2
+  for metal-H). The thresholds are choices: set them from the
   length of your runs (5 K/ns is about 5 K in 1 ns).
 
 Use the largest dt that passes in every case you run in production. If it
@@ -121,18 +128,12 @@ changing `timestep` keeps the physical times.
 - **Deuterium mass.** The H velocities are scaled by √(m_H/m_D), so the
   temperature is kept. Averages over configurations (structure, density,
   coordination) do not depend on the masses in classical MD; dynamics
-  does: vibrations, diffusion and rates of H, energy dissipation. In
-  sliding this matters: AFM friction on H-terminated diamond and Si is
-  higher than on D-terminated surfaces (Cannara et al., Science 318, 780
-  (2007), doi:10.1126/science.1147550). Use the mass of D for stages where
-  only the configurations count (thermalization, load ramp, melt-quench,
-  annealing) and the mass of H, with the timestep of this test, for
-  friction and tribochemistry. Car-Parrinello AIMD of tribology uses D for
-  another reason, the adiabatic separation of electrons and ions (e.g.
-  Kajita and Righi, Carbon 103, 193 (2016),
-  doi:10.1016/j.carbon.2016.02.078). Mass repartitioning (mass moved from
-  the heavy atom to its H) assumes fixed bonds: not for reactive MLIPs,
-  where H changes partner.
+  does (vibrations, diffusion, rates of H, dissipation): AFM friction on
+  H-terminated diamond and Si is higher than on D-terminated surfaces
+  (Cannara et al., Science 318, 780 (2007), doi:10.1126/science.1147550).
+  Use D for stages where only the configurations count (thermalization,
+  load ramp, melt-quench, annealing), H with the timestep of this test
+  for friction and tribochemistry.
 - **Equilibration of H.** X-H stretches are above the phonon frequencies
   of most lattices and exchange energy slowly with a thermostat that acts
   on the slab only: `TinH` can lag behind the thermostat. Start from a
@@ -142,7 +143,8 @@ changing `timestep` keeps the physical times.
 ## Local check (REBO, C and H)
 
 `pair_style rebo` (`CH.rebo`, LAMMPS `potentials/`) in place of the MLIP,
-serial CPU build, the inputs otherwise as they are. Two cases; logs, rdf
+serial CPU build, the inputs otherwise as they are (`t_run` 5 ps in
+`layout.in`). Two cases; logs, rdf
 files and the output of `check_dt.py` in `reference/`.
 
 **Gas** (`nve.in`): 45 CH₄ and 40 H₂ in a 30 Å box (`packmol.py CH4 H2:40
@@ -155,7 +157,7 @@ NVE per dt.
 | 0.5 | 0.29 ± 0.05 | 80 | FAIL |
 | 0.75 | 1.93 ± 0.11 | 184 | FAIL |
 | 1.0 | 6.8 ± 0.4 | 571 | FAIL |
-| 1.25 | energy diverges at 1.5 ps, lost atoms | | FAIL |
+| 1.25 | energy diverges after 0.1 ps, atoms lost at 1.6 ps | | FAIL |
 | 1.0, mass of D | 1.25 ± 0.11 | 182 | FAIL |
 
 ![gas](reference/gas/gas_check.png)
@@ -180,8 +182,8 @@ at 0.25 fs from the data file as load stage, then 5 ps per dt.
 - σ(E) follows dt² within a factor 2 up to 1.0 fs (gas) and 1.25 fs
   (interface); the energy drift and the lost atoms set the limit first.
 - With the mass of D, 1 fs behaves like H between 0.5 and 0.75 fs.
-- The inner region is 10-50 K below the thermostat at every dt, the
-  reference included, with no trend with dt: 5 ps is short for 384 atoms
+- The inner region is 10-50 K below the thermostat at every dt with H,
+  the reference included, with no trend with dt: 5 ps is short for 384 atoms
   (see "Equilibration of H"), and the thermostats take the extra energy
   away. In the gas there is no thermostat: the mean T at 1 fs is 44 K
   above that at 0.25 fs after 5 ps.

@@ -104,6 +104,9 @@ def block_sem(x, min_blocks=8):
     return best
 
 
+RMAX_HX = 1.7
+
+
 def rdf_peaks(path, rmax_hx=1.7, rmax_hh=1.0):
     """First peak (position, height) of the H-X (X: not H) and H-H
     distributions. rdf_<tag>.txt has g and coordination of H-all and H-H;
@@ -160,7 +163,7 @@ def analyse(run, skip, extra_cols):
         if c in d:
             a[c] = d[c].max()
     tag = run.get("tag", "")
-    a["rdf"] = rdf_peaks(os.path.join(os.path.dirname(run["path"]), f"rdf_{tag}.txt"))
+    a["rdf"] = rdf_peaks(os.path.join(os.path.dirname(run["path"]), f"rdf_{tag}.txt"), RMAX_HX)
     return a
 
 
@@ -174,8 +177,12 @@ def main():
     parser.add_argument("--fail-heat", type=float, default=50.0, help="K/ns")
     parser.add_argument("--max-conv", type=float, default=2.0)
     parser.add_argument("--cols", nargs="+", default=[], help="other thermo columns to compare")
+    parser.add_argument("--rmax-hx", type=float, default=1.7,
+                        help="A, H-X first peak searched below this (metal-H: ~2.2)")
     parser.add_argument("-o", "--output", default="dt_check")
     args = parser.parse_args()
+    global RMAX_HX
+    RMAX_HX = args.rmax_hx
 
     paths = sorted({p for pat in args.logs for p in glob.glob(pat)})
     runs = sorted((read_log(p) for p in paths), key=lambda r: (r["mH"], r["dt"]))
