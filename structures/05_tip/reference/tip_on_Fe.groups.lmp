@@ -1,0 +1,13 @@
+# groups for tip_on_Fe.data, written by interface.py
+group layer_bot   id <> 1 324
+group thermo_bot  id <> 325 1296
+group surf_bot    id <> 1297 2592
+group surf_top    id <> 2593 2837
+group thermo_top  id <> 2838 3514
+group slide_top   id <> 3515 3727
+group layer_top   id <> 3728 4044
+group sub_bot     union layer_bot thermo_bot surf_bot
+group sub_top     union layer_top slide_top thermo_top surf_top
+group intercalate union surf_bot surf_top
+group mobile      union thermo_bot intercalate thermo_top slide_top
+variable    load_force equal -0.06959184172   # eV/A per atom: 5.0 GPa on 706.90 A^2, 317 atoms

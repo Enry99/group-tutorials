@@ -1,0 +1,29 @@
+$ python ../tools/dope.py ../bulk/C_diamond.cif --repeat 5 4 4 --substitute Si:0.10 H:0.20
+start: C640 (640 atoms), 3.516 g/cm^3
+substituted 64 host atoms with Si
+substituted 128 host atoms with H
+final: C448H128Si64 (640 atoms), 3.342 g/cm^3
+-> C_diamond_Si10_H20.extxyz
+
+$ python ../tools/density.py C_diamond_Si10_H20.extxyz --target 3.0 -f lammps-data --specorder C Si H
+start: 640 atoms, cell 17.8350 x 14.2680 x 14.2680 A, density 3.342 g/cm^3
+final: 640 atoms, cell 18.4886 x 14.7909 x 14.7909 A, density 3.000 g/cm^3
+-> C_diamond_Si10_H20_3.00gcm3.data
+
+$ python ../tools/density.py ../bulk/C_diamond.cif --repeat 4 4 4 --target 2.8 -o C_2.8.extxyz
+start: 512 atoms, cell 14.2680 x 14.2680 x 14.2680 A, density 3.516 g/cm^3
+final: 512 atoms, cell 15.3927 x 15.3927 x 15.3927 A, density 2.800 g/cm^3
+-> C_2.8.extxyz
+
+$ python ../tools/dope.py C_2.8.extxyz --interstitial H:0.10
+start: C512 (512 atoms), 2.800 g/cm^3
+inserted 51 H (2676 attempts)
+final: C512H51 (563 atoms), 2.823 g/cm^3
+-> C_2.8_H10.extxyz
+
+$ python ../tools/density.py ../bulk/TiO2_rutile.cif --repeat 4 3 6 --xy 19.8562 21.0607 --target 3.8 -f lammps-data --specorder Fe Ti O -o TiO2_for_Fe110.data
+start: 432 atoms, cell 18.3760 x 13.7820 x 17.7540 A, density 4.247 g/cm^3
+lateral cell set: 432 atoms, cell 19.8562 x 21.0607 x 17.7540 A, density 2.572 g/cm^3
+final: 432 atoms, cell 19.8562 x 21.0607 x 12.0175 A, density 3.800 g/cm^3
+-> TiO2_for_Fe110.data
+

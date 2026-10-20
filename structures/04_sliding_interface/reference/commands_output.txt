@@ -1,0 +1,35 @@
+$ python ../tools/slab.py ../bulk/Fe_bcc.cif --miller 1 1 0 --layers 6
+bulk Fe, conventional cell [2.866 2.866 2.866] A; 1 termination(s) for 110
+t0 Fe_Cmmm_1: 6 atoms, 6 atomic planes, stoichiometric
+    bottom plane Fe, top plane Fe; a = 2.4820 b = 4.0531 A, gamma = 144.74 deg, thickness 10.133 A
+    -> Fe_bcc_110_t0.extxyz
+
+$ python ../../qe/tools/ortho_cell.py Fe_bcc_110_t0.extxyz --square 20 -o Fe110.extxyz
+supercell matrix [[1,0,0],[4,3,0],[0,0,1]] x (8,3,1): 6 -> 432 atoms
+orthorhombic cell 19.8562 x 21.0607 x 25.1328 A  -> Fe110.extxyz
+
+$ python ../tools/packmol.py H2O O2:10 --cell-from Fe110.extxyz --thickness 15 --density 1.0 -o water
+box [19.856 21.061 15.   ] A, free volume 6273 A^3: 191 H2O, 10 O2
+-> packmol.inp
+packmol: Success! 593 atoms -> water.extxyz
+
+$ python ../tools/interface.py Fe110.extxyz --middle water.extxyz --load 1.0 --specorder Fe O H -o Fe_water_Fe.data
+top strained onto the bottom cell (0.000%)
+1457 atoms (432 bottom, 593 middle, 432 top), cell [19.8562 21.0607 48.3663] A -> Fe_water_Fe.data
+group layer_bot   id <> 1 72
+group thermo_bot  id <> 73 288
+group surf_bot    id <> 289 432
+group molecules   id <> 433 1025
+group surf_top    id <> 1026 1169
+group thermo_top  id <> 1170 1385
+group layer_top   id <> 1386 1457
+group sub_bot     union layer_bot thermo_bot surf_bot
+group sub_top     union layer_top thermo_top surf_top
+group intercalate union surf_bot molecules surf_top
+group mobile      union thermo_bot intercalate thermo_top
+variable    load_force equal -0.03625158341   # eV/A per atom: 1.0 GPa on 418.19 A^2, 72 atoms
+-> Fe_water_Fe.groups.lmp
+
+$ python ../tools/load_force.py --force -0.03625158341 --cell Fe_water_Fe.data --natoms 72
+-0.03625158341 eV/A on 72 atoms over 418.19 A^2 = 1.0000 GPa
+

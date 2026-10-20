@@ -9,7 +9,9 @@ Start from `leonardo/` (the cluster), then the folder of the code you need:
 
 - `leonardo/`: nodes, storage, Slurm, Python environment, data transfer;
 - `qe/`: Quantum ESPRESSO (pw.x, neb.x), with its own `README.md`;
-- to come: LAMMPS, MLIP training and active learning, structure generation.
+- `structures/`: structure generation (slabs, interfaces, amorphous
+  starting structures, sliding interfaces, tips), for any code;
+- to come: LAMMPS, MLIP training and active learning.
 
 ## Setup (once)
 

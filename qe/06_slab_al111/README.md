@@ -124,7 +124,7 @@ of the cell: check the result (cell angles, number of atoms) every time.
 `build_slab.py` covers elemental fcc, bcc and hcp surfaces (the ASE
 builders). Compounds, other Miller indices and the choice among several
 terminations need a general slab generator (pymatgen `SlabGenerator`):
-part of the structure-generation tutorial (to come).
+see `structures/01_slabs`.
 
 ## Common problems
 

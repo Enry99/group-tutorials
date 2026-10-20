@@ -1,0 +1,51 @@
+$ python ../tools/slab.py ../bulk/TiO2_rutile.cif --miller 1 1 0 --layers 4 --list
+bulk TiO2, conventional cell [4.594 4.594 2.959] A; 2 termination(s) for 110
+t0 TiO_Pmmm_4: 24 atoms, 12 atomic planes, stoichiometric
+    bottom plane O, top plane O2Ti2; a = 2.9590 b = 6.4969 A, gamma = 90.00 deg, thickness 11.726 A
+t1 O2_Pmmm_1: 24 atoms, 12 atomic planes, stoichiometric
+    bottom plane O, top plane O; a = 2.9590 b = 6.4969 A, gamma = 90.00 deg, thickness 12.282 A
+
+$ python ../tools/slab.py ../bulk/TiO2_rutile.cif --miller 1 1 0 --layers 4 --vacuum 15
+bulk TiO2, conventional cell [4.594 4.594 2.959] A; 2 termination(s) for 110
+t0 TiO_Pmmm_4: 24 atoms, 12 atomic planes, stoichiometric
+    bottom plane O, top plane O2Ti2; a = 2.9590 b = 6.4969 A, gamma = 90.00 deg, thickness 11.726 A
+    -> TiO2_rutile_110_t0.extxyz
+t1 O2_Pmmm_1: 24 atoms, 12 atomic planes, stoichiometric
+    bottom plane O, top plane O; a = 2.9590 b = 6.4969 A, gamma = 90.00 deg, thickness 12.282 A
+    -> TiO2_rutile_110_t1.extxyz
+
+$ python ../tools/slab.py ../bulk/TiO2_rutile.cif --miller 1 1 0 --layers 4 --supercell 4 0 0 0 2 0 0 0 1 -f lammps-data --specorder Ti O
+bulk TiO2, conventional cell [4.594 4.594 2.959] A; 2 termination(s) for 110
+t0 TiO_Pmmm_4: 192 atoms, 12 atomic planes, stoichiometric
+    bottom plane O8, top plane O16Ti16; a = 11.8360 b = 12.9938 A, gamma = 90.00 deg, thickness 11.726 A
+    -> TiO2_rutile_110_t0.data
+t1 O2_Pmmm_1: 192 atoms, 12 atomic planes, stoichiometric
+    bottom plane O8, top plane O8; a = 11.8360 b = 12.9938 A, gamma = 90.00 deg, thickness 12.282 A
+    -> TiO2_rutile_110_t1.data
+
+$ python ../tools/slab.py ../bulk/C_diamond.cif --miller 1 1 1 --layers 4 --list
+bulk C, conventional cell [3.567 3.567 3.567] A; 2 termination(s) for 111
+t0 C_P6/mmm_1: 12 atoms, 12 atomic planes, stoichiometric
+    bottom plane C, top plane C; a = 2.5222 b = 2.5222 A, gamma = 60.00 deg, thickness 10.812 A
+t1 C_P6/mmm_1: 12 atoms, 12 atomic planes, stoichiometric
+    bottom plane C, top plane C; a = 2.5222 b = 2.5222 A, gamma = 60.00 deg, thickness 11.842 A
+
+$ python ../tools/slab.py ../bulk/C_diamond.cif --miller 1 1 1 --layers 4 --keep-planes 8
+bulk C, conventional cell [3.567 3.567 3.567] A; 2 termination(s) for 111
+t0 C_P6/mmm_1: 8 atoms, 12 atomic planes (kept 8), stoichiometric
+    bottom plane C, top plane C; a = 2.5222 b = 2.5222 A, gamma = 60.00 deg, thickness 6.693 A
+    -> C_diamond_111_t0.extxyz
+t1 C_P6/mmm_1: 8 atoms, 12 atomic planes (kept 8), stoichiometric
+    bottom plane C, top plane C; a = 2.5222 b = 2.5222 A, gamma = 60.00 deg, thickness 7.723 A
+    -> C_diamond_111_t1.extxyz
+
+$ python ../tools/slab.py ../bulk/Fe_bcc.cif --miller 1 1 0 --layers 6
+bulk Fe, conventional cell [2.866 2.866 2.866] A; 1 termination(s) for 110
+t0 Fe_Cmmm_1: 6 atoms, 6 atomic planes, stoichiometric
+    bottom plane Fe, top plane Fe; a = 2.4820 b = 4.0531 A, gamma = 144.74 deg, thickness 10.133 A
+    -> Fe_bcc_110_t0.extxyz
+
+$ python ../../qe/tools/ortho_cell.py Fe_bcc_110_t0.extxyz --square 20
+supercell matrix [[1,0,0],[4,3,0],[0,0,1]] x (8,3,1): 6 -> 432 atoms
+orthorhombic cell 19.8562 x 21.0607 x 25.1328 A  -> Fe_bcc_110_t0_ortho.extxyz
+

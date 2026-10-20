@@ -1,0 +1,44 @@
+$ python ../tools/tip.py ../bulk/C_diamond.cif --radius 15
+hemisphere R = 15.0 A: 1255 atoms (removed 36 with CN < 2); bulk CN 4
+1255 atoms, C1255; box [48.536 48.536 34.268] A; flat-face area pi R^2 = 706.9 A^2
+-> C_diamond_tip_R15.extxyz
+
+$ python ../tools/tip.py ../bulk/C_diamond.cif --radius 15 --passivate H:1.0 -o C_tip_H.extxyz
+hemisphere R = 15.0 A: 1255 atoms (removed 36 with CN < 2); bulk CN 4
+passivated 197 of 209 undercoordinated surface atoms with H (12 skipped: too close to others)
+1452 atoms, C1255H197; box [50.612 50.612 35.338] A; flat-face area pi R^2 = 706.9 A^2
+-> C_tip_H.extxyz
+
+$ python ../tools/tip.py ../bulk/C_diamond.cif --radius 15 --passivate H:0.5 OH:0.5 -o C_tip_HOH.extxyz
+hemisphere R = 15.0 A: 1255 atoms (removed 36 with CN < 2); bulk CN 4
+passivated 96 of 209 undercoordinated surface atoms with H (8 skipped: too close to others)
+passivated 68 of 209 undercoordinated surface atoms with OH (36 skipped: too close to others)
+1487 atoms, C1255H164O68; box [53.173 51.208 36.622] A; flat-face area pi R^2 = 706.9 A^2
+-> C_tip_HOH.extxyz
+
+$ python ../tools/slab.py ../bulk/Fe_bcc.cif --miller 1 1 0 --layers 8
+bulk Fe, conventional cell [2.866 2.866 2.866] A; 1 termination(s) for 110
+t0 Fe_Cmmm_1: 8 atoms, 8 atomic planes, stoichiometric
+    bottom plane Fe, top plane Fe; a = 2.4820 b = 4.0531 A, gamma = 144.74 deg, thickness 14.186 A
+    -> Fe_bcc_110_t0.extxyz
+
+$ python ../../qe/tools/ortho_cell.py Fe_bcc_110_t0.extxyz --square 45 -o Fe110_45.extxyz
+supercell matrix [[1,0,0],[4,3,0],[0,0,1]] x (18,6,1): 8 -> 2592 atoms
+orthorhombic cell 44.6765 x 42.1214 x 29.1860 A  -> Fe110_45.extxyz
+
+$ python ../tools/interface.py Fe110_45.extxyz --top C_tip_H.extxyz --isolated-top --fixed 2 --thermo 6 --top-fixed 2 --top-slide 2 --top-thermo 6 --load 5.0 --load-area 706.9 --specorder Fe C O H -o tip_on_Fe.data
+4044 atoms (2592 bottom, 0 middle, 1452 top), cell [44.6765 42.1214 42.024 ] A -> tip_on_Fe.data
+group layer_bot   id <> 1 324
+group thermo_bot  id <> 325 1296
+group surf_bot    id <> 1297 2592
+group surf_top    id <> 2593 2837
+group thermo_top  id <> 2838 3514
+group slide_top   id <> 3515 3727
+group layer_top   id <> 3728 4044
+group sub_bot     union layer_bot thermo_bot surf_bot
+group sub_top     union layer_top slide_top thermo_top surf_top
+group intercalate union surf_bot surf_top
+group mobile      union thermo_bot intercalate thermo_top slide_top
+variable    load_force equal -0.06959184172   # eV/A per atom: 5.0 GPa on 706.90 A^2, 317 atoms
+-> tip_on_Fe.groups.lmp
+

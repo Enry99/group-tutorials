@@ -1,0 +1,8 @@
+# products of the example commands (the READMEs regenerate them)
+*.data
+*.groups.lmp
+*.xyz
+packmol.inp
+packmol.log
+packmol_files/
+!**/reference/*
