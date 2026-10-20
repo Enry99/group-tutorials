@@ -28,12 +28,22 @@ variable  t_hold    equal  100            # ps at P
 units           metal                     # A, ps, eV, bar, K
 atom_style      atomic
 boundary        p p p
+processors      * * 1                     # no cut along z (several GPUs, see "load balance" below)
 read_data       Fe_water_Fe.data
 include         Fe_water_Fe.groups.lmp
 
 # ---------- potential ----------
 pair_style      mliap unified ${model} 0
 pair_coeff      * * ${elements}
+
+# ---------- load balance (several GPUs: jobscripts/lmp_node.sh; no effect on 1 GPU) ----------
+# Subdomains are full-height columns (processors * * 1): compression along
+# z does not move atoms between them and no GPU holds only vacuum. The
+# columns are balanced in x, y by atom count and follow the atoms during
+# sliding ("weight neigh" is skipped with Kokkos on GPUs). See
+# troubleshooting.md, "GPU out of memory".
+balance         1.0 shift xy 10 1.1
+fix             lb all balance 1000 1.1 shift xy 10 1.1   # every 1000 steps, if imbalance > 10 %
 
 # ---------- load: force per atom of layer_top ----------
 # F = P A / N (eV/A), negative = pushing down. The groups file gives

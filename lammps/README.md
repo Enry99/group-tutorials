@@ -64,6 +64,10 @@ as `job.sh` into each folder) and `troubleshooting.md`.
   profiles, diffusion).
 - One `write_restart` at the end of each stage, so a long run can be
   continued or branched.
+- Slabs and interfaces (05-08): `processors * * 1` and load balance in x,
+  y. On 1 GPU they do nothing; on several (`jobscripts/lmp_node.sh`) they
+  keep compression and vacuum from overloading single GPUs
+  (`troubleshooting.md`, "GPU out of memory").
 
 ## Local checks
 

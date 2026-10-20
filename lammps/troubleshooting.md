@@ -50,11 +50,19 @@ The run stops with an error containing "out of memory" in the Slurm
 output (`grep -i "out of memory" *.out *.err`), or with no message at all
 (next section). What helps:
 
-1. **`processors * * 1`** for slabs and interfaces: no cut along z, each
-   GPU holds full-height columns, so compression along z does not move
-   atoms between subdomains. Balance then in x and y only
-   (`balance 1.0 shift xy 5 1.1`, and `fix balance ... shift xy 5 1.1
-   weight neigh 0.6` to follow the pairs as they move).
+1. **`processors * * 1`** for slabs and interfaces (in the templates 05
+   to 08): no cut along z, each GPU holds full-height columns, so
+   compression along z does not move atoms between subdomains. Balance
+   then in x and y only, by atom count: `balance 1.0 shift xy 10 1.1`
+   and `fix lb all balance 1000 1.1 shift xy 10 1.1`. `weight neigh`
+   does nothing on GPUs (its warning under "Other messages"); with
+   full-height columns the atom count follows the pairs closely enough.
+   Local test, 4 MPI ranks on CPU, the load stage of `05_sliding` with
+   EAM and a Lennard-Jones liquid (1457 atoms): the default grid is
+   1 × 1 × 4 (cut along z), with 1.41-1.54 times the mean number of atoms
+   on the fullest rank during the load ramp; with `processors * * 1` and
+   the balance in x, y the grid is 2 × 2 × 1 and the ratio stays below
+   1.12, and the run is 35-45 % faster.
 2. **Limit the speed in the compression with the load on**: a longer
    load ramp, or `fix nve/limit` on the moving parts during the approach
    only (it caps the displacement per step; not in production: the
@@ -124,6 +132,14 @@ ReaxFF force fields are in `units real` (kcal/mol, fs). The templates use
 `-var name value` on the command line defines an index variable; the
 input then defines the same name as `equal` or `string`. Only index
 variables can be set from the command line (`09_timestep`).
+
+### `WARNING: Balance weight neigh skipped with KOKKOS using GPUs`
+
+`balance` or `fix balance` with `weight neigh` in a Kokkos run on GPUs:
+the weight is ignored (LAMMPS source, `imbalance_neigh.cpp`, the same in
+the group build) and the balance is by atom count. Drop the keyword; with
+`processors * * 1` the atom count is a good measure for slabs (main
+problems, "GPU out of memory").
 
 ### `WARNING: One or more particle depositions were unsuccessful`
 
