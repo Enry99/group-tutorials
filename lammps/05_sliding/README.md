@@ -54,7 +54,8 @@ sliding distance = v t (minus the acceleration).
   × 160.2 GPa (the minus: the force of the system on the top layer opposes
   the motion). Friction coefficient μ = τ/P.
 - Average only the steady state: discard the first part (run-in), use
-  block averages for the error (`../analysis/`, to come).
+  block averages for the error (`../analysis/friction.py`; velocity and
+  density profiles: `vprofile.py`, `zprofile.py`).
 - `fix move` integrates the NULL components like `fix nve` and must be the
   only integrator on `layer_top`.
 

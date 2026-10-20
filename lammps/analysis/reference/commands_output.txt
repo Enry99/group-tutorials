@@ -1,0 +1,125 @@
+Output of the examples in ../README.md, run with OVITO 3.16.1, numpy, pandas,
+matplotlib, scipy, ase in a container. Inputs: the logs in
+../../0*/reference/ and the dumps of the local checks of 03, 05, 06, 07
+(classical potentials, reduced settings: see each README; the dumps are
+not in the repository).
+
+$ python thermo.py 01_load.log 02_slide.log --list
+run 0 (01_load.log, 6 rows, minimization): Step Time PotEng c_temp_int c_temp_mol c_temp_tbot c_temp_ttop "f_load[1]" "f_load[3]" "f_hold_bot[1]" "f_hold_bot[3]" v_gap v_fz
+run 1 (01_load.log, 52 rows, timestep 0.0005): Step Time PotEng c_temp_int c_temp_mol c_temp_tbot c_temp_ttop "f_load[1]" "f_load[3]" "f_hold_bot[1]" "f_hold_bot[3]" v_gap v_fz
+run 2 (01_load.log, 52 rows, timestep 0.0005): Step Time PotEng c_temp_int c_temp_mol c_temp_tbot c_temp_ttop "f_load[1]" "f_load[3]" "f_hold_bot[1]" "f_hold_bot[3]" v_gap v_fz
+run 3 (01_load.log, 202 rows, timestep 0.0005): Step Time PotEng c_temp_int c_temp_mol c_temp_tbot c_temp_ttop "f_load[1]" "f_load[3]" "f_hold_bot[1]" "f_hold_bot[3]" v_gap v_fz
+run 4 (01_load.log, 202 rows, timestep 0.0005): Step Time PotEng c_temp_int c_temp_mol c_temp_tbot c_temp_ttop "f_load[1]" "f_load[3]" "f_hold_bot[1]" "f_hold_bot[3]" v_gap v_fz
+run 5 (02_slide.log, 551 rows, timestep 0.0005): Step Time PotEng c_temp_int c_temp_mol c_temp_tbot c_temp_ttop "f_load[1]" "f_load[3]" "f_hold_bot[1]" "f_hold_bot[3]" v_gap v_xtop v_vx
+
+$ python thermo.py 01_load.log 02_slide.log -c c_temp_int v_gap "f_load[3]" "-f_load[1]" --rolling 21 -o load_slide
+1056 rows, 2 stage(s), time 0-105 ps
+-> load_slide.csv, load_slide.png
+
+$ python thermo.py 02_slide.log -c "-f_load[1]" "f_hold_bot[1]" v_gap --stats
+551 rows, 1 stage(s), time 0-55 ps
+
+                column stage   rows          mean         std sem (block)  tau_int   N_eff
+            "-f_load[1]"     0    441      0.021613       1.442     0.08444      1.0   441.0
+         "f_hold_bot[1]"     0    441     0.0094013        1.57     0.08545      1.0   441.0
+                 v_gap     0    441        34.857     0.07861      0.0138      6.9    63.8
+sem: error of the mean from blocking; tau_int in rows; N_eff = rows / tau_int (below 20: run longer)
+-> thermo.csv, thermo.png
+
+$ python friction.py 02_slide.log --force "-f_load[1]" --normal "f_load[3]" --data Fe_water_Fe.data --labels 02_slide
+         label  rows          tau (GPa) tau_int  N_eff          P (GPa)              mu
+      02_slide   441    0.0083 +- 0.0323     1.0    441   0.994 +- 0.059  0.008 +- 0.033
+errors: one standard error of the mean (blocking); rows from t = 11 of the stage
+-> friction.csv, friction_blocking.png
+
+$ python zprofile.py 01_load.lammpstrj 02_slide.lammpstrj --last 20 --mass --sigma 0.3 --shade Fe -o density
+108 frames in the dumps; window: 20 frames, steps 72000-110000
+             H: max 0.331 g/cm^3
+             O: max 2.757 g/cm^3
+            Fe: max 31.93 g/cm^3
+-> density.csv, density.png
+
+$ python vprofile.py 02_slide.lammpstrj --dt 0.0005 --tmin 10 -o vx
+56 frames; window 46 frames (t = 10-55), 45 pairs with lag 1
+mean |dz| over one interval: 0.300 A (z blurring; keep it below the width you measure)
+
+profile z = 0.10-35.10 A; plateaus -0.02 and +9.92 m/s
+tanh fit: z0 = 19.23 +- 0.76 A, w = 1.58 +- 1.31 A (2w = 3.17 A), R^2 = 0.32 -> LOCALISED
+   R^2 below 0.9: the profile is too noisy for the fits and the regime; run longer, or check with a larger --bin and --lag
+model-free width w10-90 = 1.94 A
+-> vx.csv, vx.png
+
+$ python structure.py meltquench.lammpstrj --last 10 --angles C-C-C -o aC
+1 file(s), 279 frames: meltquench.lammpstrj
+10 frame(s): steps 269000-278000
+  bond cutoff C-C: 1.95 A (table)
+
+   pair  peak (A)  valley (A)  cutoff g(rc)/g(pk) bonds/frame
+    C-C      1.51   1.69-2.07    1.95        0.00       334.0   (table)
+
+coordination (bonds within the cutoffs; 10 frame(s))
+   C (216 centres): mean 3.09   3: 90.7%  4: 9.3%
+       neighbours per C: C 3.09
+
+bond angles
+  C-C-C: 708 per frame, mean 117.8 deg, most frequent 118.8 deg
+-> aC_rdf.csv/png, aC_cn.csv/png, aC_angles.csv/png
+
+$ python structure.py 01_indent.lammpstrj -o Fe_check
+1 file(s), 101 frames: 01_indent.lammpstrj
+1 frame(s): steps 200000-200000
+  bond cutoff Fe-Fe: 3.30 A (1.25 x covalent radii)
+
+   pair  peak (A)  valley (A)  cutoff g(rc)/g(pk) bonds/frame
+  Fe-Fe      2.49   2.65-2.73    3.30        0.00     13548.0   (1.25 x covalent radii)   <- check: beyond the valley, takes in the next shell
+
+coordination (bonds within the cutoffs; 1 frame(s))
+  Fe (2133 centres): mean 12.70   4: 0.4%  5: 0.5%  6: 0.8%  7: 1.4%  8: 1.3%  9: 3.4%  10: 16.9%  11: 2.0%  12: 2.6%  13: 2.2%  14: 68.6%
+       neighbours per Fe: Fe 12.70
+-> Fe_check_rdf.csv/png, Fe_check_cn.csv/png
+
+$ python bonds.py 01_indent.lammpstrj --side1 sub_top --side2 sub_bot --groups Fe_tip_on_Fe.groups.lmp --cutoff Fe-Fe:2.7 --dt 0.001 --counts -o tip_slab
+1 file(s), 101 frames: 01_indent.lammpstrj
+  bond cutoff Fe-Fe: 2.70 A (given)
+side 1: 333 ids (sub_top)
+side 2: 1800 ids (sub_bot)
+101 frames, steps 0-200000
+first frame: 333 atoms on side 1, 1800 on side 2
+
+     linkage    first     last      max   (counts)
+       Fe-Fe        0      271      299
+       total        0      271      299
+-> tip_slab.csv, tip_slab.png
+
+$ python detached.py 01_indent.lammpstrj --track sub_top --groups Fe_tip_on_Fe.groups.lmp --cutoff Fe-Fe:2.7 --dt 0.001 -o tip
+1 file(s), 101 frames: 01_indent.lammpstrj
+  bond cutoff Fe-Fe: 2.70 A (given)
+tracked: 333 ids (sub_top)
+101 frames, steps 0-200000
+
+reference frame (step 0): 333 tracked atoms in 1 cluster(s)
+  cluster 1:     333 atoms   Fe333
+-> following 333 atoms (cluster 1): check that cluster 1 is the body
+
+last frame: Fe 0  (total 0, 0 fragments)
+-> tip.csv, tip_fragments.csv, tip.png
+
+$ python species.py highT.lammpstrj --track molecules --groups Fe_water.groups.lmp --cutoff Fe-Fe:2.7 --dt 0.25 --units real -o water
+1 file(s), 11 frames: highT.lammpstrj
+  bond cutoff H-H: 1.20 A (table)
+  bond cutoff H-O: 1.30 A (table)
+  bond cutoff H-Fe: 2.04 A (1.25 x covalent radii)
+  bond cutoff O-O: 1.80 A (table)
+  bond cutoff O-Fe: 2.48 A (1.25 x covalent radii)
+  bond cutoff Fe-Fe: 2.70 A (given)
+tracked: 593 ids (molecules)
+11 frames, steps 0-18240
+
+             species   first    last     mean
+                 H2O     191     190    181.0
+                  O2      10      10     10.0
+         H2O (bound)       0       1     10.0
+H bonded to untracked: first 0, last 0
+O bonded to untracked: first 0, last 1
+-> water.csv, water.png
+

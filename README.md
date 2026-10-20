@@ -12,8 +12,9 @@ Start from `leonardo/` (the cluster), then the folder of the code you need:
 - `structures/`: structure generation (slabs, interfaces, amorphous
   starting structures, sliding interfaces, tips), for any code;
 - `lammps/`: LAMMPS templates (minimization, NVE/NVT/NPT, melt-quench,
-  deformation, sliding, indentation, reactions, deposition) with MLIPs;
-- to come: analysis of MD trajectories, MLIP training and active learning.
+  deformation, sliding, indentation, reactions, deposition) with MLIPs,
+  and the analysis of their outputs (`lammps/analysis/`);
+- to come: MLIP training and active learning.
 
 ## Setup (once)
 

@@ -18,10 +18,14 @@
       cases (interface at the highest load and T, confined water/OH at
       high T, CVD gas species, mass of D at 1 fs); then set the default
       timestep of the templates from the results.
-- [ ] `lammps/analysis/`: friction with block errors, velocity and density
-      profiles, bond and fragment counts (from the tribology-nemd and
-      ovito-analysis scripts), RDF, angles, coordination (SiN and Coimbra
-      notebooks), thermo-log reader; OVITO from the `.venv/mace` env.
+- [x] `lammps/analysis/` (draft): thermo logs, friction with block errors,
+      density and velocity profiles, RDF/coordination/angles with a cutoff
+      check, interfacial bonds, detached atoms, molecule census; synthetic
+      checks in `tests/`. Still open: renders and movies (framing of
+      interfacial_bonds.py), MSD/diffusion.
+- [ ] Enrico: `python lammps/analysis/tests/synthetic.py` in the
+      `.venv/mace` env on Leonardo (OVITO version there), and a look at
+      the "Differences from the original scripts" in its README.
 - [ ] Test `jobscripts/lmp_node.sh` (several GPUs) with a slab template:
       `processors * * 1` and the x, y load balance only act there.
 - [ ] Enrico: upload the indent + slide templates with torque removal

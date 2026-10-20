@@ -28,7 +28,9 @@ commands themselves see the [LAMMPS manual](https://docs.lammps.org).
 
 The data files of the templates are built with `../structures/` (each
 README gives the command). Also here: `jobscripts/` (Slurm scripts, copied
-as `job.sh` into each folder) and `troubleshooting.md`.
+as `job.sh` into each folder), `troubleshooting.md` and `analysis/`
+(friction with error bars, density and velocity profiles, structure,
+bonds across an interface, wear, molecule counts).
 
 ## Setup (once)
 

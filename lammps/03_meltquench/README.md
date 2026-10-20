@@ -54,7 +54,7 @@ in two in OVITO (seen in the local check). Resetting only z
 - Liquid: mean square displacement growing linearly, RDF without crystal
   peaks.
 - Final structure: density, coordination numbers, RDF, bond angles
-  (analysis: `../analysis/`, to come). For carbon: sp³ fraction.
+  (`../analysis/structure.py`). For carbon: sp³ fraction (fourfold C).
 - Energy vs quench rate: two rates give an idea of how far from
   convergence the structure is.
 
