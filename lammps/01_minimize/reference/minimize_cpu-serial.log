@@ -19,11 +19,10 @@ Reading data file ...
   1 by 1 by 1 MPI processor grid
   reading atoms ...
   250 atoms
-  read_data CPU = 0.001 seconds
+  read_data CPU = 0.056 seconds
 
 # ---------- potential ----------
 pair_style      eam/fs
-pair_coeff      * * Fe_mm.eam.fs ${elements}
 pair_coeff      * * Fe_mm.eam.fs Fe
 Reading eam/fs potential file Fe_mm.eam.fs with DATE: 2007-06-11
 
@@ -36,8 +35,11 @@ dump_modify     traj element Fe sort id format float %15.12g
 
 # ---------- 1. atoms only ----------
 # stop when the largest force component is below 1e-3 eV/A (etol = 0: not used),
-# or after 10000 iterations / 100000 force evaluations
+# or after 10000 iterations / 100000 force evaluations. norm inf: ftol applies
+# to the largest component (fmax); the default (two) uses the norm of the
+# whole force vector (fnorm), stricter the larger the system.
 min_style       cg
+min_modify      norm inf
 minimize        0.0 1.0e-3 10000 100000
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
@@ -55,7 +57,7 @@ Per MPI rank memory allocation (min/avg/max) = 4.527 | 4.527 | 4.527 Mbytes
    Step         PotEng          Fmax          Fnorm          Press           Pxx            Pyy            Pzz           Volume    
          0  -1030.406       3.1530768e-15  2.1471595e-14 -19741.67      -19741.67      -19741.67      -19741.67       2942.6497    
          1  -1030.406       3.1530768e-15  2.0872702e-14 -19741.67      -19741.67      -19741.67      -19741.67       2942.6497    
-Loop time of 0.000957976 on 1 procs for 1 steps with 250 atoms
+Loop time of 0.00196499 on 1 procs for 1 steps with 250 atoms
 
 100.1% CPU use with 1 MPI tasks x 1 OpenMP threads
 
@@ -71,12 +73,12 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.00077629 | 0.00077629 | 0.00077629 |   0.0 | 81.03
+Pair    | 0.0015612  | 0.0015612  | 0.0015612  |   0.0 | 79.45
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 1.4181e-05 | 1.4181e-05 | 1.4181e-05 |   0.0 |  1.48
+Comm    | 3.6511e-05 | 3.6511e-05 | 3.6511e-05 |   0.0 |  1.86
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 0.0001675  |            |       | 17.49
+Other   |            | 0.0003672  |            |       | 18.69
 
 Nlocal:            250 ave         250 max         250 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -102,9 +104,9 @@ Per MPI rank memory allocation (min/avg/max) = 5.799 | 5.799 | 5.799 Mbytes
    Step         PotEng          Fmax          Fnorm          Press           Pxx            Pyy            Pzz           Volume    
          1  -1030.406       3.1530768e-15  2.0872702e-14 -19741.67      -19741.67      -19741.67      -19741.67       2942.6497    
          5  -1030.6088      2.4813485e-14  2.9056234e-13  0.053925666    0.053925666    0.053925666    0.053925666    2909.8901    
-Loop time of 0.00214729 on 1 procs for 4 steps with 250 atoms
+Loop time of 0.00379514 on 1 procs for 4 steps with 250 atoms
 
-95.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+99.2% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 Minimization stats:
   Stopping criterion = force tolerance
@@ -118,12 +120,12 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.0018101  | 0.0018101  | 0.0018101  |   0.0 | 84.30
+Pair    | 0.0030725  | 0.0030725  | 0.0030725  |   0.0 | 80.96
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 3.0292e-05 | 3.0292e-05 | 3.0292e-05 |   0.0 |  1.41
+Comm    | 5.3858e-05 | 5.3858e-05 | 5.3858e-05 |   0.0 |  1.42
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 0.0003069  |            |       | 14.29
+Other   |            | 0.0006688  |            |       | 17.62
 
 Nlocal:            250 ave         250 max         250 min
 Histogram: 1 0 0 0 0 0 0 0 0 0

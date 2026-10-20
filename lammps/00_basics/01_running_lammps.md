@@ -6,7 +6,8 @@
 /leonardo/pub/userexternal/epedrett/software/lammps-22Jul2026/build/lmp
 ```
 
-LAMMPS 30 Mar 2026, development version (git commit 16f8568), built with
+LAMMPS 30 Mar 2026, development version (git commit 16f8568; the directory
+name is not the version), built with
 Kokkos for the A100 GPUs and the ML-IAP package with Python, which runs
 MACE models (`03_mlip_pair_styles.md`). Check the version and the packages
 of any binary with `lmp -h | head -40`. It needs:
@@ -56,8 +57,9 @@ sbatch --dependency=afterok:$id job.sh 02_slide.in
 
 `afterok`: the second job starts only if the first one ended without
 error. To continue the same stage after the walltime, start from the last
-periodic restart (`restart N name.*.restart` in the templates) with an
-input that begins with `read_restart`.
+periodic restart (`restart N name.*.restart` in the long templates, e.g.
+`05_sliding/02_slide.in`) with an input that begins with `read_restart`
+(`02_input_anatomy.md`, "Restart files").
 
 ## Checks on a run
 
@@ -70,6 +72,6 @@ input that begins with `read_restart`.
   the templates (a thermostat on a region with its own temperature compute).
 - With `-sf kk`, styles without a Kokkos version run on the CPU and copy
   data between CPU and GPU at every step. In the templates: `fix move`,
-  `fix rigid`, `fix deposit`, `compute reduce`. With a MLIP the model
+  `fix rigid`, `fix deposit`, `compute reduce`. With an MLIP the model
   dominates the cost, but check the timing breakdown at the end of the log
   (`Modify` line) if a run is slower than expected.

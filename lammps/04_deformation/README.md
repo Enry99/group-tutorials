@@ -10,7 +10,9 @@ runs.
 sbatch job.sh uniaxial.in      # Fe_bcc.data
 ```
 
-1. NPT at T and 0 bar (`aniso`, 20 ps); the final lx is L0.
+1. NPT at T and 0 bar (`aniso`, 20 ps); L0 = mean lx over the second
+   half, the cell set to it (`change_box`) and saved
+   (`uniaxial_eq.restart`, to start a second rate).
 2. `fix deform ... x erate` with `npt ... y 0 0 z 0 0`: strain
    ε = (lx − L0)/L0 and stresses σ = −p/10⁴ (GPa, positive = tensile)
    written every 100 steps to `stress_strain.txt`.
@@ -23,10 +25,9 @@ two rates.
 ## Notes
 
 - `thermo_style` must contain `press` when variables use `pxx`
-  (otherwise: `ERROR: Thermo keyword pxx in variable requires thermo to
-  use/init press`, met while writing this template).
-- `remap x` moves the atoms with the cell; without it only the box
-  changes.
+  (`../troubleshooting.md`).
+- `remap x` (the default) moves the atoms with the cell; `remap none`
+  would change only the box.
 - Fracture of a perfect crystal needs very high stress: real materials
   break at defects. Put the defect (notch, grain boundary, void) in the
   structure if you want that.
@@ -34,9 +35,10 @@ two rates.
 ## Local check (reduced settings)
 
 `pair_style eam/fs` with `Fe_mm.eam.fs`, 250 atoms, tension along [100] at
-10⁹ 1/s to 20 % strain (200 ps), the input as it is otherwise: L0 = 14.235
-Å; σxx ≈ 6.1 GPa at 5 % (initial slope ≈ 120 GPa), maximum 9.7 GPa at 8 %,
-then yield (σxx drops to 4-8 GPa). σyy, σzz stay at 0 ± 1 GPa. 72 s on
-one core. Log and curve in `reference/`.
+10⁹ 1/s to 20 % strain (200 ps), the input as it is otherwise: L0 = 14.295
+Å; σxx = 0.0 GPa at ε = 0, 1.4 GPa at 1 %, 6.9 GPa at 5 % (slope 141 GPa
+over 0-5 %), maximum 10.2 GPa at 7.6 % (9.1 GPa averaged over 0.5 % of
+strain), then yield (σxx 4-8 GPa). σyy, σzz stay at 0 GPa with 0.5 GPa
+fluctuations. 90 s on one core. Log and curve in `reference/`.
 
 ![stress-strain](reference/stress_strain_cpu-serial.png)

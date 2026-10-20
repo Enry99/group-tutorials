@@ -23,7 +23,7 @@ sbatch job.sh nvt.in
 
 - **Initial temperature.** `velocity create T` on a perfect crystal: half
   of the kinetic energy goes into potential energy and T settles near
-  T/2 (in `nve.in`, 600 K gives ~280 K).
+  T/2 (in `nve.in`, 600 K gives ~290 K).
 - **Fluctuations.** In small systems T and P fluctuate a lot: σ(T)/T ≈
   √(2/(3N)), 5 % at 250 atoms (measured below: 4.5 % in NVE, 5.7 % in
   NVT). Pressure jumps by ±1 GPa here: average it, never read one line.
@@ -31,6 +31,9 @@ sbatch job.sh nvt.in
   (non-cubic crystals), `x ... y ...` for slabs with vacuum, `z` for a
   film between fixed lateral cells. The comment block in `npt.in` gives
   the syntax.
+- **Cell of NVE and NVT**: the one of the data file. If it is not the
+  equilibrium cell at T (here the pressure is −1.2 GPa), run `npt.in`
+  first and start from its `npt.data`.
 - **Tdamp/Pdamp** too small (e.g. 10 dt) make the temperature or the cell
   oscillate; too large equilibrate slowly. 100 dt and 1000 dt are the
   usual values.
@@ -41,7 +44,8 @@ sbatch job.sh nvt.in
 `potentials/`), serial CPU build, the inputs as they are otherwise:
 
 - NVE (600 K start, 20 ps): after 2 ps T = 291 ± 13 K; total energy
-  −1011.0945 eV at step 0, then constant within 1.2 meV (no drift).
+  −1011.0945 eV at step 0, then constant within 1.2 meV after the first ps
+  (no drift).
 - NVT (300 K): after 2 ps T = 299 ± 17 K.
 - NPT (300 K, 0 bar), averages of the last 10 ps: T = 301 K, P = 64 bar,
   a = 14.2953/5 = 2.8591 Å (0 K, `01_minimize`: 2.8553 Å), ρ = 7.936

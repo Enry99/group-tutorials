@@ -8,7 +8,7 @@ variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP fo
 variable  elements  string "Fe"           # element of each atom type, in the order of the data file
 variable  T         equal  300            # K
 variable  P         equal  0.0            # bar (1 GPa = 10000 bar)
-variable  nsteps    equal  20000          # 20 ps with 1 fs
+variable  t_run     equal  20             # ps
 
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
@@ -43,8 +43,8 @@ variable        rho equal density
 variable        a equal lx
 variable        b equal ly
 variable        c equal lz
-fix             averages all ave/time 10 $(v_nsteps/20) ${nsteps} c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
-run             ${nsteps}
+fix             averages all ave/time 10 $(round(v_t_run/dt/20)) $(round(v_t_run/dt)) c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
+run             $(round(v_t_run/dt))
 
 write_restart   npt.restart
 write_data      npt.data nocoeff

@@ -84,8 +84,9 @@ variable  ez     atom   -v_fz*z               # one value per atom
 1. `variable elements` in the order of the atom types of the data file
    (`Masses` section of the data file).
 2. `variable model`: the path exists, and the model has all the elements.
-3. Timestep: 1 fs; 0.5 fs with H or above ~1500 K. Check energy
-   conservation once (`02_md_ensembles/nve.in`).
+3. Timestep: 1 fs; 0.5 fs with H (`09_timestep`). At high T check that
+   `econserve` (thermostat included) does not drift, or run
+   `02_md_ensembles/nve.in` once.
 4. Every moving group has exactly one integrator (no warning `One or more
    atoms are time integrated more than once`).
 5. A short test in the debug queue before the long run.

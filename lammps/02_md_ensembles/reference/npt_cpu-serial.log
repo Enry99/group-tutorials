@@ -11,7 +11,7 @@ variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP fo
 variable  elements  string "Fe"           # element of each atom type, in the order of the data file
 variable  T         equal  300            # K
 variable  P         equal  0.0            # bar (1 GPa = 10000 bar)
-variable  nsteps    equal  20000          # 20 ps with 1 fs
+variable  t_run     equal  20             # ps
 
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
@@ -27,7 +27,6 @@ Reading data file ...
 
 # ---------- potential ----------
 pair_style      eam/fs
-pair_coeff      * * Fe_mm.eam.fs ${elements}
 pair_coeff      * * Fe_mm.eam.fs Fe
 Reading eam/fs potential file Fe_mm.eam.fs with DATE: 2007-06-11
 
@@ -62,10 +61,10 @@ variable        rho equal density
 variable        a equal lx
 variable        b equal ly
 variable        c equal lz
-fix             averages all ave/time 10 $(v_nsteps/20) ${nsteps} c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
-fix             averages all ave/time 10 1000 ${nsteps} c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
+fix             averages all ave/time 10 $(round(v_t_run/dt/20)) $(round(v_t_run/dt)) c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
+fix             averages all ave/time 10 1000 $(round(v_t_run/dt)) c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
 fix             averages all ave/time 10 1000 20000 c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
-run             ${nsteps}
+run             $(round(v_t_run/dt))
 run             20000
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
@@ -282,20 +281,20 @@ Per MPI rank memory allocation (min/avg/max) = 3.402 | 3.402 | 3.402 Mbytes
      19800   19.8           306.75752     -1020.7646      10827.756      10694.069      9977.2332      11811.967      14.261648      14.261648      14.261648      2900.7425      7.9921604    
      19900   19.9           281.94161     -1020.533      -11530.85      -11856.868     -11889.437     -10846.246      14.329914      14.329914      14.329914      2942.5965      7.8784838    
      20000   20             290.49343     -1020.6612      9042.1744      8980.4452      8758.911       9387.1669      14.266767      14.266767      14.266767      2903.8669      7.9835611    
-Loop time of 6.22315 on 1 procs for 20000 steps with 250 atoms
+Loop time of 7.65416 on 1 procs for 20000 steps with 250 atoms
 
-Performance: 277.673 ns/day, 0.086 hours/ns, 3213.805 timesteps/s, 803.451 katom-step/s
-98.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 225.759 ns/day, 0.106 hours/ns, 2612.957 timesteps/s, 653.239 katom-step/s
+98.9% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 5.9295     | 5.9295     | 5.9295     |   0.0 | 95.28
+Pair    | 7.2958     | 7.2958     | 7.2958     |   0.0 | 95.32
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 0.10738    | 0.10738    | 0.10738    |   0.0 |  1.73
-Output  | 0.0089033  | 0.0089033  | 0.0089033  |   0.0 |  0.14
-Modify  | 0.1514     | 0.1514     | 0.1514     |   0.0 |  2.43
-Other   |            | 0.02596    |            |       |  0.42
+Comm    | 0.13341    | 0.13341    | 0.13341    |   0.0 |  1.74
+Output  | 0.010906   | 0.010906   | 0.010906   |   0.0 |  0.14
+Modify  | 0.18331    | 0.18331    | 0.18331    |   0.0 |  2.39
+Other   |            | 0.03078    |            |       |  0.40
 
 Nlocal:            250 ave         250 max         250 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -313,4 +312,4 @@ write_restart   npt.restart
 System init for write_restart ...
 write_data      npt.data nocoeff
 System init for write_data ...
-Total wall time: 0:00:06
+Total wall time: 0:00:07

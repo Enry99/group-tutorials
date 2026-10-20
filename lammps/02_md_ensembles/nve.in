@@ -7,7 +7,7 @@
 variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
 variable  elements  string "Fe"           # element of each atom type, in the order of the data file
 variable  T         equal  600            # K, initial velocities (see below)
-variable  nsteps    equal  20000          # 20 ps with 1 fs
+variable  t_run     equal  20             # ps
 
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
@@ -32,6 +32,6 @@ timestep        0.001                     # ps = 1 fs; 0.5 fs with H, or at high
 # energy: the temperature settles at about T/2.
 velocity        all create ${T} 12345 dist gaussian mom yes rot yes
 fix             integrate all nve
-run             ${nsteps}
+run             $(round(v_t_run/dt))
 
 write_restart   nve.restart

@@ -17,7 +17,9 @@
 - [ ] Enrico: run `lammps/09_timestep` with MACE on Leonardo on the edge
       cases (interface at the highest load and T, confined water/OH at
       high T, CVD gas species, mass of D at 1 fs); then set the default
-      timestep of the templates from the results.
+      timestep of the templates from the results (also for the hot stages
+      of 03_meltquench: with Tersoff C at 6000 K, 1 fs drifts, see its
+      README).
 - [x] `lammps/analysis/` (draft): thermo logs, friction with block errors,
       density and velocity profiles, RDF/coordination/angles with a cutoff
       check, interfacial bonds, detached atoms, molecule census; synthetic

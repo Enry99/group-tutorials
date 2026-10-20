@@ -24,8 +24,11 @@ dump_modify     traj element ${elements} sort id format float %15.12g
 
 # ---------- 1. atoms only ----------
 # stop when the largest force component is below 1e-3 eV/A (etol = 0: not used),
-# or after 10000 iterations / 100000 force evaluations
+# or after 10000 iterations / 100000 force evaluations. norm inf: ftol applies
+# to the largest component (fmax); the default (two) uses the norm of the
+# whole force vector (fnorm), stricter the larger the system.
 min_style       cg
+min_modify      norm inf
 minimize        0.0 1.0e-3 10000 100000
 
 # ---------- 2. atoms and cell ----------

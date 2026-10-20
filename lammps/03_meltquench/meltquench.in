@@ -32,11 +32,12 @@ pair_coeff      * * ${elements}
 
 # ---------- output ----------
 thermo          1000
-thermo_style    custom step time temp pe etotal press vol density
+thermo_style    custom step time temp pe etotal econserve press vol density   # econserve must not drift
+thermo_modify   flush yes
 dump            traj all custom 1000 meltquench.lammpstrj id element xu yu zu
 dump_modify     traj element ${elements} sort id format float %15.12g
 
-timestep        0.001                     # ps = 1 fs; 0.5 fs with H (and at 6000 K check the drift)
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H, or if econserve drifts at 6000 K
 variable        tdamp equal 100.0*dt
 velocity        all create ${T0} 4928 dist gaussian mom yes rot yes
 

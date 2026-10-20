@@ -2,8 +2,8 @@
 
 The templates use MACE models through ML-IAP, the interface of the group
 build. This page gives the two lines that change for each kind of model,
-taken from the group inputs. In all of them `pair_coeff * *` is followed by
-the element of each atom type, in the order of the data file.
+taken from the group inputs. In all of them the `pair_coeff * *` line ends
+with the element of each atom type, in the order of the data file.
 
 ## MACE through ML-IAP (templates)
 

@@ -30,8 +30,9 @@ the forces were huge. Checklist:
    `fix_modify` lines (a restart file stores no fixes and no computes;
    give `pair_style` and `pair_coeff` again for the MLIP).
 6. A non-periodic boundary (`boundary p p f`): an atom that crosses that
-   face is lost. Close it with `fix wall/reflect` (met in the deposition
-   template with a wall only at the top).
+   face is lost. Close it with `fix wall/reflect` on both faces (in the
+   deposition template, with a wall only at the top atoms were lost
+   through the bottom).
 
 ### GPU out of memory (MLIP)
 
@@ -57,12 +58,9 @@ output (`grep -i "out of memory" *.out *.err`), or with no message at all
    and `fix lb all balance 1000 1.1 shift xy 10 1.1`. `weight neigh`
    does nothing on GPUs (its warning under "Other messages"); with
    full-height columns the atom count follows the pairs closely enough.
-   Local test, 4 MPI ranks on CPU, the load stage of `05_sliding` with
-   EAM and a Lennard-Jones liquid (1457 atoms): the default grid is
-   1 × 1 × 4 (cut along z), with 1.41-1.54 times the mean number of atoms
-   on the fullest rank during the load ramp; with `processors * * 1` and
-   the balance in x, y the grid is 2 × 2 × 1 and the ratio stays below
-   1.12, and the run is 35-45 % faster.
+   In a local test (load stage of `05_sliding`, 4 ranks) the fullest rank
+   went from 1.5 to below 1.12 times the mean atom count, and the run was
+   35-45 % faster.
 2. **Limit the speed in the compression with the load on**: a longer
    load ramp, or `fix nve/limit` on the moving parts during the approach
    only (it caps the displacement per step; not in production: the
@@ -91,13 +89,13 @@ Find the cause:
    `NODE_FAIL`, `FAILED` with an exit code.
 2. The Slurm `.err` and `.out` files: Python tracebacks and CUDA errors
    end up there, not in the LAMMPS log.
-3. The last thermo lines (the templates use `thermo_modify flush yes`):
+3. The last thermo lines (`thermo_modify flush yes` in the long templates):
    at which stage, density and temperature it stopped. A stop during
    compression or at the start of sliding points to memory (section
    above).
 
 Restart from the last restart file (`restart N name.*.restart` in the
-templates) with the fixes of the stage, after the change.
+long templates) with the fixes of the stage, after the change.
 
 ## Other messages
 

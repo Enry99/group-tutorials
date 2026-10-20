@@ -10,7 +10,7 @@ OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
 variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
 variable  elements  string "Fe"           # element of each atom type, in the order of the data file
 variable  T         equal  600            # K, initial velocities (see below)
-variable  nsteps    equal  20000          # 20 ps with 1 fs
+variable  t_run     equal  20             # ps
 
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
@@ -26,7 +26,6 @@ Reading data file ...
 
 # ---------- potential ----------
 pair_style      eam/fs
-pair_coeff      * * Fe_mm.eam.fs ${elements}
 pair_coeff      * * Fe_mm.eam.fs Fe
 Reading eam/fs potential file Fe_mm.eam.fs with DATE: 2007-06-11
 
@@ -45,7 +44,7 @@ timestep        0.001                     # ps = 1 fs; 0.5 fs with H, or at high
 velocity        all create ${T} 12345 dist gaussian mom yes rot yes
 velocity        all create 600 12345 dist gaussian mom yes rot yes
 fix             integrate all nve
-run             ${nsteps}
+run             $(round(v_t_run/dt))
 run             20000
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
@@ -262,20 +261,20 @@ Per MPI rank memory allocation (min/avg/max) = 3.402 | 3.402 | 3.402 Mbytes
      19800   19.8           287.21345     -1020.3338      9.2441878     -1011.0897     -11491.294    
      19900   19.9           305.87889     -1020.935       9.8449494     -1011.0901     -11711.537    
      20000   20             328.10308     -1021.6506      10.560252     -1011.0903     -12888.508    
-Loop time of 5.57225 on 1 procs for 20000 steps with 250 atoms
+Loop time of 7.68575 on 1 procs for 20000 steps with 250 atoms
 
-Performance: 310.108 ns/day, 0.077 hours/ns, 3589.217 timesteps/s, 897.304 katom-step/s
-98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 224.832 ns/day, 0.107 hours/ns, 2602.218 timesteps/s, 650.554 katom-step/s
+99.0% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 5.4074     | 5.4074     | 5.4074     |   0.0 | 97.04
+Pair    | 7.4596     | 7.4596     | 7.4596     |   0.0 | 97.06
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 0.10255    | 0.10255    | 0.10255    |   0.0 |  1.84
-Output  | 0.0076724  | 0.0076724  | 0.0076724  |   0.0 |  0.14
-Modify  | 0.029559   | 0.029559   | 0.029559   |   0.0 |  0.53
-Other   |            | 0.02508    |            |       |  0.45
+Comm    | 0.13985    | 0.13985    | 0.13985    |   0.0 |  1.82
+Output  | 0.010946   | 0.010946   | 0.010946   |   0.0 |  0.14
+Modify  | 0.040937   | 0.040937   | 0.040937   |   0.0 |  0.53
+Other   |            | 0.03444    |            |       |  0.45
 
 Nlocal:            250 ave         250 max         250 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -291,4 +290,4 @@ Dangerous builds = 0
 
 write_restart   nve.restart
 System init for write_restart ...
-Total wall time: 0:00:05
+Total wall time: 0:00:07

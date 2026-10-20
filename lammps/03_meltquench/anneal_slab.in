@@ -17,13 +17,13 @@ variable  t_cool    equal  40             # ps
 units           metal                     # A, ps, eV, bar, K
 atom_style      atomic
 boundary        p p p
-read_data       meltquench.data
+read_data       meltquench.data           # meltquench_npt.data if you ran the NPT stage
 # the bulk is cut at the z boundary: two free surfaces, at the bottom and at the top
 change_box      all z final $(zlo) $(zhi+v_vacuum) units box
 displace_atoms  all move 0 0 $(v_vacuum/2) units box   # slab in the middle of the cell
 # image flags from the bulk run are meaningless now: without this the
 # unwrapped z (zu) of the atoms that crossed the z boundary is off by one cell
-# (all three flags reset: "image NULL NULL 0" is ignored by some 2025 versions)
+# (all three reset: ../troubleshooting.md, "Silent problems")
 set             group all image 0 0 0
 
 # ---------- potential ----------

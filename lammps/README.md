@@ -41,14 +41,17 @@ bonds across an interface, wear, molecule counts).
    also `CHANGE_ME`). List the files first:
    ```bash
    cd lammps_runs
-   grep -rl CHANGE_ME .
+   grep -rl --include='*.in' --include='*.sh' CHANGE_ME .
    ```
    The account can be replaced everywhere at once with
-   `sed -i 's/--account=CHANGE_ME/--account=<your_project>/' */job.sh jobscripts/*.sh`;
+   `sed -i 's/--account=CHANGE_ME/--account=<your_project>/' */job*.sh jobscripts/*.sh`;
    the model is usually different for each project, set it by hand.
-3. Set `variable elements` in each input to the element list of the model,
-   in the order of the atom types of your data file
-   (`../structures/README.md`, "Conventions").
+3. In each input you use: the data file (`read_data`) and `variable
+   elements`, one element per atom type of the data file, in type order
+   (its `Masses` section; `../structures/README.md`, "Conventions").
+4. The jobscripts use the debug queue (30 min), enough for a first test.
+   With an MLIP most templates need longer: shorten the times for the
+   test, then delete the `--qos` line and set `--time` for the real run.
 
 ## Conventions of the templates
 
@@ -78,7 +81,6 @@ The templates were run in a container with a serial CPU build of LAMMPS
 for Fe, Tersoff for C and Si, ReaxFF for Fe/O/H), at reduced settings.
 This checks the inputs, not the physics: each README says which potential
 and settings were used; logs, plots and pictures are in `reference/`
-(`*_cpu-serial.*`). The changes between that version and the group build
-do not touch the commands of the templates (LAMMPS git history and manual
-pages checked). A bug of older 2025 versions in `set image` is avoided in
-`03_meltquench/anneal_slab.in`.
+(`*_cpu-serial.*`). The commands of the templates are the same in the
+group build. Lines added after the checks (`processors`, `balance`,
+periodic `restart`) do not change the results and are not in those logs.

@@ -10,7 +10,7 @@ OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
 variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
 variable  elements  string "Fe"           # element of each atom type, in the order of the data file
 variable  T         equal  300            # K
-variable  nsteps    equal  20000          # 20 ps with 1 fs
+variable  t_run     equal  20             # ps
 
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
@@ -26,7 +26,6 @@ Reading data file ...
 
 # ---------- potential ----------
 pair_style      eam/fs
-pair_coeff      * * Fe_mm.eam.fs ${elements}
 pair_coeff      * * Fe_mm.eam.fs Fe
 Reading eam/fs potential file Fe_mm.eam.fs with DATE: 2007-06-11
 
@@ -47,7 +46,7 @@ fix             thermostat all nvt temp ${T} ${T} $(100.0*dt)
 fix             thermostat all nvt temp 300 ${T} $(100.0*dt)
 fix             thermostat all nvt temp 300 300 $(100.0*dt)
 fix             thermostat all nvt temp 300 300 0.10000000000000000555
-run             ${nsteps}
+run             $(round(v_t_run/dt))
 run             20000
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
@@ -264,20 +263,20 @@ Per MPI rank memory allocation (min/avg/max) = 3.402 | 3.402 | 3.402 Mbytes
      19800   19.8           300.40367     -1020.2465     -1010.5778     -11616.455    
      19900   19.9           315.92515     -1020.4736     -1010.3053     -12396.641    
      20000   20             310.11356     -1020.3779     -1010.3967     -11630.337    
-Loop time of 5.20189 on 1 procs for 20000 steps with 250 atoms
+Loop time of 7.43294 on 1 procs for 20000 steps with 250 atoms
 
-Performance: 332.187 ns/day, 0.072 hours/ns, 3844.756 timesteps/s, 961.189 katom-step/s
-99.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 232.479 ns/day, 0.103 hours/ns, 2690.726 timesteps/s, 672.682 katom-step/s
+98.7% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 5.0199     | 5.0199     | 5.0199     |   0.0 | 96.50
+Pair    | 7.1764     | 7.1764     | 7.1764     |   0.0 | 96.55
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 0.09606    | 0.09606    | 0.09606    |   0.0 |  1.85
-Output  | 0.0072671  | 0.0072671  | 0.0072671  |   0.0 |  0.14
-Modify  | 0.056175   | 0.056175   | 0.056175   |   0.0 |  1.08
-Other   |            | 0.0225     |            |       |  0.43
+Comm    | 0.13527    | 0.13527    | 0.13527    |   0.0 |  1.82
+Output  | 0.010047   | 0.010047   | 0.010047   |   0.0 |  0.14
+Modify  | 0.078936   | 0.078936   | 0.078936   |   0.0 |  1.06
+Other   |            | 0.03232    |            |       |  0.43
 
 Nlocal:            250 ave         250 max         250 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -293,4 +292,4 @@ Dangerous builds = 0
 
 write_restart   nvt.restart
 System init for write_restart ...
-Total wall time: 0:00:05
+Total wall time: 0:00:07

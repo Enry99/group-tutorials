@@ -16,7 +16,7 @@
 #SBATCH --ntasks-per-node=1          # 1 MPI rank ...
 #SBATCH --gres=gpu:1                 # ... driving 1 GPU
 #SBATCH --cpus-per-task=8            # 8 cores per rank: a quarter of a node
-#SBATCH --mem=100000                 # MB, a quarter of the node memory
+#SBATCH --mem=100000                 # MB (~100 GB of the 512 GB of a node)
 #SBATCH --output=%x-%j.out           # Slurm log (%x = job name, %j = job id), not the LAMMPS output
 #SBATCH --error=%x-%j.err
 
@@ -27,7 +27,8 @@ LOG=${INP%.in}.log
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-# Group build of LAMMPS (30 Mar 2026, development version 16f8568; Kokkos CUDA + ML-IAP for MACE).
+# Group build of LAMMPS (30 Mar 2026, development version 16f8568; Kokkos CUDA + ML-IAP for MACE;
+# the directory name is not the version).
 # It needs CUDA, OpenMPI and the shared Python environment (torch, mace).
 module purge
 module load cuda/12.6 openmpi/4.1.6--gcc--12.2.0

@@ -7,10 +7,14 @@ of the potential at 0 K, and at the end of a run to get a structure for
 analysis or DFT. You get the relaxed structure (`minimized.data`) and, with
 box/relax, the 0 K cell.
 
-`minimize.in` (on `Fe_bcc.data`, 250 atoms of bcc Fe):
+`minimize.in` (on `Fe_bcc.data`, 250 atoms of bcc Fe, also used by 02 and
+04; built with `python -c "from ase.build import bulk; from ase.io import
+write; write('Fe_bcc.data', bulk('Fe', 'bcc', a=2.866, cubic=True).repeat(5),
+format='lammps-data', masses=True)"`):
 
 1. atoms only, fixed cell: `minimize 0.0 1.0e-3 10000 100000`, i.e. no
-   energy criterion, force criterion 1e-3 eV/Å, at most 10000 iterations;
+   energy criterion, largest force component below 1e-3 eV/Å
+   (`min_modify norm inf`), at most 10000 iterations;
 2. atoms and cell at zero pressure: `fix box/relax iso 0.0`, then the same
    `minimize`. Use `aniso` for non-cubic cells, `x 0.0 y 0.0` for slabs
    (never relax z across the vacuum).
@@ -22,8 +26,10 @@ grep -E "Stopping criterion|final cell" minimize.log    # when the job has finis
 
 What to check: `Stopping criterion = force tolerance` (not `max
 iterations`), and `fmax` in the last thermo line below the tolerance. With
-box/relax the pressure at the end should be close to the target (a few
-bar).
+an MLIP in single precision the minimizer can stop on `linesearch alpha is
+zero` before the tolerance: then look at `fmax`; a few 1e-3 eV/Å is
+usually as low as it goes. With box/relax the pressure at the end should
+be close to the target (a few bar).
 
 ## Notes
 

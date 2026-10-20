@@ -31,9 +31,16 @@ velocity        all create ${T} 8541 dist gaussian mom yes rot yes
 thermo          1000
 thermo_style    custom step time temp pe press lx ly lz
 fix             md all npt temp ${T} ${T} ${tdamp} aniso 0.0 0.0 ${pdamp}
+variable        lxi equal lx
+fix             lav all ave/time 10 $(round(v_t_eq/dt/20)) $(round(v_t_eq/dt)) v_lxi   # mean lx, 2nd half
 run             $(round(v_t_eq/dt))
-variable        L0 equal $(lx)            # reference length (evaluated now, then constant)
+# reference length = mean lx (one instantaneous value is off by the
+# barostat oscillation); the cell is set to it before the deformation
+variable        L0 equal $(f_lav)
+change_box      all x final $(xlo) $(xlo+v_L0) remap units box
+unfix           lav
 print           "L0 = ${L0} A"
+write_restart   uniaxial_eq.restart       # equilibrated cell: start of a second rate
 
 # ---------- 2. deformation ----------
 # erate is in 1/ps in metal units: 1e9 1/s = 1e-3 1/ps
