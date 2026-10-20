@@ -38,3 +38,5 @@ two rates.
 Å; σxx ≈ 6.1 GPa at 5 % (initial slope ≈ 120 GPa), maximum 9.7 GPa at 8 %,
 then yield (σxx drops to 4-8 GPa). σyy, σzz stay at 0 ± 1 GPa. 72 s on
 one core. Log and curve in `reference/`.
+
+![stress-strain](reference/stress_strain_cpu-serial.png)

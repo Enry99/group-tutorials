@@ -27,11 +27,25 @@ sbatch job.sh deposition.in
 - Molecules: `molecule` command with a molecule file and `mol` in `fix
   deposit` (commented lines in the input; molecule file format in the
   LAMMPS manual, command `molecule`).
-- Every cycle (`nper` insertions): `delete_atoms group free`, where `free`
-  is a dynamic group of atoms with no neighbour within `rcut` and more than
-  5 Å above the initial surface. For products such as H₂, use the
-  coordination with the commented lines (`07_reactive` counts them the
-  same way).
+- Every cycle (`nper` insertions): `delete_atoms group free compress no`,
+  where `free` is a dynamic group of atoms with no neighbour within `rcut`,
+  more than 5 Å above the initial surface and moving up (`vz > 0`). Without
+  the velocity condition the atom inserted last, still on its way down,
+  is deleted too (it happened in the first version of this template).
+  `compress no` keeps the IDs: by default `delete_atoms` re-assigns the IDs
+  of all atoms, so the frames of the trajectory no longer match by ID.
+  `id next` in `fix deposit` does the same for new atoms: by default a new
+  atom gets the highest current ID + 1, the ID of a deleted atom if that
+  one was the last inserted. (Added after the local check below.)
+  For products such as H₂, use the coordination with the commented lines
+  (`07_reactive` counts them the same way).
+- Reflecting walls at both z faces (`boundary p p f`): an atom that crosses
+  a non-periodic face is lost and the run stops (`ERROR: Lost atoms`, met
+  with only the top wall).
+- Size: the film grows by about N/(n A) (8.5 Å for 100 Si on 236 Å²).
+  The insertion region must stay above it, with vacuum above in the data
+  file: otherwise `WARNING: One or more particle depositions were
+  unsuccessful` and fewer atoms are inserted.
 - The loop: `variable icycle loop`, `label`, `run`, `next icycle`, `jump
   SELF cycle`. The `next` line is what ends it: without it the loop runs
   until the walltime and the final `write_data` is never reached.
@@ -41,7 +55,10 @@ log reports `Deleted N atoms` at each cycle.
 
 ## Local check (reduced settings)
 
-`pair_style tersoff` with `Si.tersoff` (LAMMPS `potentials/`), 5 cycles of
-10 insertions (100 ps), serial CPU build, 21 s: 50 atoms inserted, 1 atom
-deleted per cycle (bounced back), 173 atoms at the end; thermostatted
-layer between 830 and 1220 K (128 atoms: large fluctuations). Log in `reference/`.
+`pair_style tersoff` with `Si.tersoff` (LAMMPS `potentials/`), the input
+as it is otherwise (10 cycles of 10 insertions, 200 ps), serial CPU build,
+66 s: 100 atoms inserted, 1 deleted (it bounced back, in the last cycle),
+227 atoms at the end; thermostatted layer between 790 and 1390 K (48
+atoms: large fluctuations). Log in `reference/`.
+
+![deposition](reference/deposition_cpu-serial.png)

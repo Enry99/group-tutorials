@@ -75,15 +75,26 @@ sliding distance = v t (minus the acceleration).
 ## Local check (reduced settings)
 
 The data file as it is, with `pair_style hybrid eam/fs lj/cut 6.0`: Fe-Fe
-EAM (Mendelev), all other pairs weak Lennard-Jones (ε 0.005-0.02 eV): the
-"water" is a non-bonded LJ fluid. Not physical; it checks the mechanics of
-the inputs. Times reduced: t_therm 10, t_block 5, t_ramp 20, t_hold 20 ps;
-t_acc 5, t_slide 20 ps. Serial CPU build, 3 min and 1.5 min.
+EAM (Mendelev), all other pairs Lennard-Jones (ε = 0.03 eV, σ = 2 Å among
+O and H; ε = 0.05 eV, σ = 2 Å with Fe). The "water" is a non-bonded LJ
+liquid: not physical, it checks the mechanics of the inputs. Times reduced:
+t_therm 10, t_block 5, t_ramp 20, t_hold 20 ps; t_acc 5, t_slide 50 ps.
+Serial CPU build, about 4 min for each input.
 
 - 01: minimization, 2 thermalization blocks, ramp to 1 GPa, hold. During
-  the hold `f_load[3]` averages to 2.71 eV/Å against P·A = 2.61 eV/Å, and
-  the gap is stable at 46.3 Å; thermostatted layers at 300 ± 20 K.
-- 02: `layer_top` x position grows by 0.1 Å/ps after 5 ps, the gap stays at
-  46.2-46.4 Å.
+  the hold `f_load[3]` averages to 2.62 eV/Å against P·A = 2.61 eV/Å, and
+  the gap is 34.9 ± 0.2 Å; thermostatted layers at 300 ± 20 K.
+- 02: `layer_top` moves at 0.1 Å/ps after the 5 ps acceleration; the gap
+  stays at 34.6-35.1 Å. The friction force is zero within the noise for
+  this LJ liquid (`f_load[1]` −0.01 eV/Å, `−f_hold_bot[1]` −0.03 eV/Å on
+  average after 10 ps): the two layers give the same average, as they
+  should in steady state.
 
-Logs (with the modified lines) in `reference/`.
+![sliding](reference/sliding_cpu-serial.png)
+
+Left: load stage (normal force on `layer_top`, raw and rolling mean, and
+the applied load; distance between the outer layers). Middle: sliding
+stage (x force on the top and bottom layers, displacement of `layer_top`).
+Right: groups at the end of the sliding (colours as in
+`structures/04_sliding_interface`). Logs (with the modified lines) in
+`reference/`.

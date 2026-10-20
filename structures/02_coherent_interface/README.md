@@ -64,6 +64,11 @@ It writes `TiO2_rutile_Fe_bcc_9.extxyz` (Fe at the bottom, 2.5 Å gap
 distance 2.482 Å as in the bulk (the substrate is not strained), shortest
 Ti-O 1.946 Å.
 
+![interface](reference/TiO2_on_Fe110_front.png)
+
+Front view (along y) of match 9: three Fe(110) planes (orange), 2.5 Å
+gap, three unit planes of TiO₂(110) (Ti grey, O red).
+
 Thicknesses are in unit planes: 3 Fe(110) planes are 4.05 Å, too thin for
 anything but a test. Use the separate slabs to build a thicker system or a
 sliding interface with `interface.py` (04).

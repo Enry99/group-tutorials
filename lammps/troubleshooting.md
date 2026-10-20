@@ -1,7 +1,9 @@
 # Troubleshooting (LAMMPS)
 
 Search this page for the exact text of the message. ✔: reproduced with
-LAMMPS 22 Jul 2025 (Update 4), the version of the group build.
+LAMMPS 22 Jul 2025 (Update 4), the version of the local checks (the group
+build is the 30 Mar 2026 development version: same behaviour for these
+messages).
 
 ## Errors
 
@@ -20,6 +22,9 @@ the forces were huge. Checklist:
 4. Load: force per atom × atoms = P × area? (`structures/tools/load_force.py`)
 5. After a restart: the same fixes, in the same order, with their
    `fix_modify` lines.
+6. A non-periodic boundary (`boundary p p f`): an atom that crosses that
+   face is lost. Close it with `fix wall/reflect` (met in the deposition
+   template with a wall only at the top).
 
 ### `ERROR: Must use variable energy with fix addforce` ✔
 
@@ -48,6 +53,13 @@ ReaxFF force fields are in `units real` (kcal/mol, fs). The templates use
 `units metal`: times, timestep and energies change with the units.
 
 ## Warnings
+
+### `WARNING: One or more particle depositions were unsuccessful` ✔
+
+`fix deposit` found no place in the insertion region at least `near` Å
+from the other atoms, usually because the growing film has reached the
+region. Fewer atoms are inserted than asked. Move the region higher (more
+vacuum in the data file) or deposit fewer atoms (`08_deposition`).
 
 ### `WARNING: One or more atoms are time integrated more than once` ✔
 

@@ -27,7 +27,7 @@ import numpy as np
 from ase.io import read
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import density, write_structure  # noqa: E402
+from common import density, extension, write_structure  # noqa: E402
 
 
 def report(tag, atoms):
@@ -67,7 +67,7 @@ def main():
     report("final", atoms)
 
     stem = os.path.splitext(os.path.basename(args.structure))[0]
-    ext = {"extxyz": "extxyz", "lammps-data": "data"}.get(args.format, args.format)
+    ext = extension(args.format)
     out = args.output or f"{stem}_{args.target:.2f}gcm3.{ext}"
     write_structure(out, atoms, args.format, args.specorder)
     print(f"-> {out}")

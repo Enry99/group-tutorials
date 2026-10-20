@@ -42,10 +42,12 @@ sbatch job.sh anneal_slab.in    # needs meltquench.data from step 1
 
 `change_box` adds `vacuum` Å along z: the bulk is cut at the z boundary,
 giving two free surfaces. Then heat to Ta (1500 K), hold, cool, minimize.
-`set group all image NULL NULL 0` clears the z image flags inherited from
-the bulk run: without it, atoms that crossed the z boundary in the bulk
+`set group all image 0 0 0` clears the image flags inherited from the
+bulk run: without it, atoms that crossed the z boundary in the bulk
 appear one cell away in the unwrapped coordinates and the slab looks cut
-in two in OVITO (seen in the local check).
+in two in OVITO (seen in the local check). Resetting only z
+(`image NULL NULL 0`) is ignored by LAMMPS versions from spring 2025 to
+22 Jul 2025 Update 2 (bug fixed in January 2026), so all three are reset.
 
 ## Checks
 
@@ -62,12 +64,15 @@ in two in OVITO (seen in the local check).
 parameters) in place of the MLIP, 216 atoms, the inputs as they are
 otherwise; 72 s each on one CPU core.
 
-- `meltquench.in`: final T = 297 K, pressure −12 GPa at 3.0 g/cm³ (the
-  potential would like a higher density), 91 % threefold and 9 % fourfold
-  C (cutoff 1.85 Å). The NPT stage (tested with a 570 K/ps quench and 20 ps
-  NPT) brings the density to 3.43 g/cm³.
-- `anneal_slab.in`: 11.28 Å of bulk → a 10.4 Å thick slab in a 31.28 Å
-  cell, centred in z.
+- `meltquench.in`: in the anneal stage T = 301 K and P = −10.4 GPa at
+  3.0 g/cm³ (the potential would like a higher density); 91 % threefold and
+  9 % fourfold C (cutoff 1.85 Å). The NPT stage (tested separately with a
+  570 K/ps quench and 20 ps NPT) brings the density to 3.43 g/cm³.
+- `anneal_slab.in`: the 11.28 Å bulk becomes a 12.3 Å thick slab in a
+  31.28 Å cell, centred in z; 13 % twofold, 81 % threefold, 6 % fourfold C.
 
-Tersoff carbon is a poor model of a-C: these numbers check the input, not
-the material. Logs in `reference/`.
+![melt-quench](reference/meltquench_cpu-serial.png)
+
+Temperature and potential energy along the stages, the amorphous bulk and
+the annealed slab. Tersoff carbon is a poor model of a-C: these numbers
+check the input, not the material. Logs in `reference/`.

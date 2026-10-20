@@ -8,8 +8,8 @@ type of simulation. Copy the template closest to what you need, then
 change the settings block at the top. For the commands themselves see the
 [LAMMPS manual](https://docs.lammps.org).
 
-(Group build on Leonardo: LAMMPS stable 22 Jul 2025, Update 4, Kokkos +
-ML-IAP; see `00_basics`.)
+(Group build on Leonardo: LAMMPS 30 Mar 2026, development version
+16f8568, with Kokkos and ML-IAP; see `00_basics`.)
 
 ## Contents
 
@@ -66,8 +66,12 @@ as `job.sh` into each folder) and `troubleshooting.md`.
 
 ## Local checks
 
-The templates were run in a container with a serial CPU build of the
-same LAMMPS version and classical potentials in place of the MLIP (EAM for
-Fe, Tersoff for C and Si, ReaxFF for Fe/O/H), at reduced settings. This
-checks the inputs, not the physics: each README says which potential and
-settings were used, and the logs are in `reference/` (`*_cpu-serial.log`).
+The templates were run in a container with a serial CPU build of LAMMPS
+22 Jul 2025 (Update 4) and classical potentials in place of the MLIP (EAM
+for Fe, Tersoff for C and Si, ReaxFF for Fe/O/H), at reduced settings.
+This checks the inputs, not the physics: each README says which potential
+and settings were used; logs, plots and pictures are in `reference/`
+(`*_cpu-serial.*`). The changes between that version and the group build
+do not touch the commands of the templates (LAMMPS git history and manual
+pages checked). A bug of older 2025 versions in `set image` is avoided in
+`03_meltquench/anneal_slab.in`.

@@ -69,6 +69,11 @@ Layout, from the bottom (thicknesses from the outer surface of each slab):
 | `slide_top` | optional, `--top-slide` Å | 0 | moved (sliding) |
 | `layer_top` | outermost atoms of the top slab | `--top-fixed` (= `--fixed`) | load (and sliding) |
 
+![groups](reference/Fe_water_Fe_front.png)
+
+Front view (along y): elements (Fe orange, O red, H white) and the groups
+of the templates in `lammps/05_sliding`.
+
 Parts are stacked `--gap 2.5` Å apart, with `--vacuum 10` Å above the top
 slab. In the LAMMPS input:
 
@@ -96,8 +101,9 @@ z = 0, `layer_top` starts at 38.37 Å, above `thermo_top` (36.34 Å).
 - **Top slab.** By default a copy of the bottom one. `--top other.extxyz`
   for a different slab with the same lateral cell (`--max-strain 0.005`):
   e.g. the film and substrate written by `zsl_interface.py` (02).
-  `--flip-top` turns the top upside down, so that the same termination
-  faces the interface when top and bottom terminations differ.
+  `--flip-top` turns the top upside down (180° about x), so that the same
+  termination faces the interface when top and bottom terminations differ;
+  it needs a rectangular (or hexagonal) in-plane cell.
 - **No top slab.** `--no-top` writes only the bottom slab and the middle
   part: molecules on a surface, e.g. for reactions at high temperature
   (`lammps/07_reactive`). The groups are those of the bottom slab and

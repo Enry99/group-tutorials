@@ -14,4 +14,7 @@
 - [x] LAMMPS templates (`lammps/`, draft), checked locally with classical
       potentials. Still open: runs with a MLIP on Leonardo, `lmp_node.sh`
       not tested, analysis of the trajectories (`lammps/analysis/`).
+- [ ] Enrico: upload the indent + slide templates with torque removal
+      (rigid tip with `torque * off off off`, constant force instead of
+      constant z), to replace or extend `lammps/06_indentation`.
 - [ ] Possibly: band structure and DOS, AIMD, cohesive energy.

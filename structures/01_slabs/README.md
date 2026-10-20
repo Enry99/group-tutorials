@@ -65,6 +65,12 @@ complete bilayers), t1 7.72 Å (ends inside bilayers). For the (111)
 surface you usually want t0. Open both in OVITO and count the neighbours
 of the surface atoms.
 
+![terminations](reference/slabs_side_view.png)
+
+Side views (along x) of the two TiO₂(110) terminations (Ti grey, O red),
+and of the diamond (111) slabs with 8 planes kept: t0 ends on complete
+bilayers, t1 cuts them.
+
 ## 4. Orthorhombic cell for MD
 
 Fe(110) comes out with an oblique cell (γ = 144.7°). Sliding needs an

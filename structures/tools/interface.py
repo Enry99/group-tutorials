@@ -29,10 +29,11 @@ What it does (based on create_interf*.py by E. Pedretti):
   1. reads the slabs; the top is a copy of the bottom if not given
      (--no-top: none, e.g. molecules on a surface);
      --flip-top turns it upside down (180 deg about x), so that the same
-     surface faces the interface;
+     surface faces the interface (rectangular or hexagonal cells only);
   2. checks that the lateral cells match (--max-strain, default 0.5 %) and
      strains the top onto the bottom; --isolated-top skips the check and
-     centres the top (a tip, a cluster) above the bottom slab;
+     centres the top (a tip, a cluster) above the bottom slab, checking that
+     it does not touch its periodic images;
   3. puts the middle --gap A above the bottom and the top --gap A above it,
      adds --vacuum A above the top (cell c);
   4. writes the data file (atom types in --specorder: the order of
@@ -63,6 +64,18 @@ def zones(z, edge, widths, from_top):
         limit += w
         label[(depth < limit) & (label == len(widths))] = k
     return label
+
+
+def mirror_ok(cell):
+    """True if the in-plane lattice maps onto itself under y -> -y, as the
+    180 deg rotation about x of --flip-top requires (rectangular cells, and
+    hexagonal ones with a1 along x)."""
+    m = cell[:2, :2].T                                  # columns: a1, a2 (x, y)
+    for v in cell[:2, :2]:
+        n = np.linalg.solve(m, [v[0], -v[1]])
+        if not np.allclose(n, np.round(n), atol=1e-6):
+            return False
+    return True
 
 
 def id_range(mask, offset):
@@ -105,6 +118,9 @@ def main():
     bottom = sort_z(read(args.bottom))
     top = None if args.no_top else (read(args.top) if args.top else bottom.copy())
     if args.flip_top and top is not None:
+        if not args.isolated_top and not mirror_ok(top.cell[:]):
+            sys.exit("--flip-top: the in-plane cell is not symmetric under y -> -y "
+                     "(oblique cell); make it orthorhombic first (ortho_cell.py)")
         top.rotate(180, "x", center="COM")
     middle = sort_z(read(args.middle)) if args.middle else None
 
@@ -116,6 +132,12 @@ def main():
     elif args.isolated_top:
         shift = bottom.positions[:, :2].mean(0) - top.positions[:, :2].mean(0)
         top.positions[:, :2] += shift
+        clear = np.diag(cell)[:2] - np.ptp(top.positions[:, :2], axis=0)
+        if clear.min() < 2.0:
+            sys.exit(f"the top ({np.ptp(top.positions[:, :2], axis=0).round(1)} A wide) "
+                     f"does not fit in the lateral cell {np.diag(cell)[:2].round(1)} A")
+        if clear.min() < 10.0:
+            print(f"WARNING: the top is only {clear.min():.1f} A from its periodic image")
     else:
         strain = np.abs(top.cell[:2, :2] - cell[:2, :2]).max() / cell[:2, :2].max()
         if strain > args.max_strain:

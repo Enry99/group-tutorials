@@ -38,7 +38,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import sort_z, write_structure  # noqa: E402
+from common import extension, sort_z, write_structure  # noqa: E402
 
 
 def planes(atoms, tol):
@@ -147,7 +147,7 @@ def main():
               f"a = {a:.4f} b = {b:.4f} A, gamma = {gamma:.2f} deg, "
               f"thickness {thickness:.3f} A")
         if not args.list:
-            ext = {"extxyz": "extxyz", "lammps-data": "data"}.get(args.format, args.format)
+            ext = extension(args.format)
             out = f"{stem}_{hkl}_t{i}.{ext}"
             write_structure(out, atoms, args.format, args.specorder)
             print(f"    -> {out}")

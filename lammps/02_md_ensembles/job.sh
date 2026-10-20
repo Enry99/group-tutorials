@@ -27,7 +27,7 @@ LOG=${INP%.in}.log
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-# Group build of LAMMPS (stable 22 Jul 2025, Kokkos CUDA + ML-IAP for MACE).
+# Group build of LAMMPS (30 Mar 2026, development version 16f8568; Kokkos CUDA + ML-IAP for MACE).
 # It needs CUDA, OpenMPI and the shared Python environment (torch, mace).
 module purge
 module load cuda/12.6 openmpi/4.1.6--gcc--12.2.0

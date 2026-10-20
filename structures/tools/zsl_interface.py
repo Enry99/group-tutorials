@@ -49,6 +49,8 @@ def conventional(path):
 
 def to_atoms(structure):
     atoms = AseAtomsAdaptor.get_atoms(structure)
+    atoms.wrap(pbc=[True, True, False])   # pymatgen leaves the film outside the cell in x, y
+    atoms.pbc = True
     atoms.positions[:, 2] -= atoms.positions[:, 2].min()
     return sort_z(atoms)
 

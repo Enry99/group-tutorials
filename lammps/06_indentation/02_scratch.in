@@ -93,7 +93,10 @@ unfix           nve_slide
 variable        vA equal ${v}*0.01                       # A/ps
 variable        s1 equal $(step)
 variable        nacc equal round(v_t_acc/dt)
-variable        vx equal v_vA*ternary(step-${s1}<${nacc},(step-${s1})/${nacc},1.0)
+if "${nacc} > 0" then &
+  "variable vx equal v_vA*ternary(step-${s1}<${nacc},(step-${s1})/${nacc},1.0)" &
+else &
+  "variable vx equal v_vA"
 fix             slide     slide_top   move variable NULL NULL NULL v_vx NULL NULL
 run             $(v_nacc+round(v_t_slide/dt))
 write_restart   scratch_end.restart

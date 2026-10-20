@@ -58,6 +58,11 @@ group layer_top   id <> 3728 4044
 variable    load_force equal -0.06959184172   # eV/A per atom: 5.0 GPa on 706.90 A^2, 317 atoms
 ```
 
+![tip on slab](reference/tip_on_Fe_front.png)
+
+Front view: elements (C grey, H white, Fe orange) and, on an 8 Å slice
+through the axis of the tip, the groups.
+
 - `--isolated-top` skips the lateral-cell check and centres the tip above
   the slab; the apex is `--gap 2.5` Å above the slab.
 - From the flat face down: `layer_top` (2 Å, load, usually a rigid body

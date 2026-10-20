@@ -76,4 +76,9 @@ force (`load:` line of the log) together with P.
   from 29.0 to 24.2 Å in 6 ps), sinks to 23.7 Å under the load, then
   `slide_top` advances at 0.1 Å/ps.
 
-Logs in `reference/`.
+![indentation](reference/indentation_cpu-serial.png)
+
+Left: z force on `layer_top` vs its displacement in the four stages of
+`01_indent.in` (negative = the tip is pulled towards the slab). Right: an
+8 Å slice through the tip axis at the maximum depth, coloured by group
+(as in `structures/05_tip`). Logs in `reference/`.

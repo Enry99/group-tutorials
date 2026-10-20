@@ -47,4 +47,8 @@ sbatch job.sh nvt.in
   a = 14.2953/5 = 2.8591 Å (0 K, `01_minimize`: 2.8553 Å), ρ = 7.936
   g/cm³.
 
-Logs and averages in `reference/`.
+![md ensembles](reference/md_ensembles_cpu-serial.png)
+
+Temperature in the three runs; total energy of the NVE run around its
+mean (after 1 ps); density in the NPT run. Logs and averages in
+`reference/`.

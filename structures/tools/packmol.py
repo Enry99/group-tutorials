@@ -35,7 +35,8 @@ import numpy as np
 from ase.build import molecule
 from ase.io import read, write
 
-AMU_TO_G = 1.66053906660e-24
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import A3_TO_CM3, AMU_TO_G  # noqa: E402
 
 
 def load_molecule(spec):
@@ -70,9 +71,8 @@ def main():
     else:
         box = np.array(args.box)
 
-    volume = np.prod(box)
     os.makedirs("packmol_files", exist_ok=True)
-    blocks, solute_mass, excluded = [], 0.0, 0.0
+    blocks, excluded = [], 0.0
     if args.solute:
         solute = read(args.solute)
         excluded = np.prod(np.ptp(solute.positions, axis=0) + 1.5)
@@ -81,32 +81,25 @@ def main():
         blocks.append("structure packmol_files/solute.xyz\n  number 1\n"
                       "  fixed 0. 0. 0. 0. 0. 0.\nend structure")
 
-    t = args.tolerance / 2
+    # (name, atoms, number); the number of the first one follows from the density
+    mols = [(*load_molecule(s), int(s.split(":")[1]) if ":" in s else None)
+            for s in args.molecules]
+    if mols[0][2] is not None or any(n is None for _, _, n in mols[1:]):
+        sys.exit("first molecule without a number (it fills the box), the others NAME:N")
+    free = np.prod(box) - excluded
+    added = sum(n * m.get_masses().sum() for _, m, n in mols[1:])
+    n0 = int((args.density * free * A3_TO_CM3 / AMU_TO_G - added) / mols[0][1].get_masses().sum())
+    if n0 <= 0:
+        sys.exit("no room for the first molecule: check box, density and the added molecules")
+    mols[0] = (mols[0][0], mols[0][1], n0)
+
+    t = args.tolerance / 2           # atoms kept t from the faces: images >= tolerance apart
     inside = f"inside box {t:.3f} {t:.3f} {t:.3f} " + " ".join(f"{b - t:.3f}" for b in box)
-    report = []
-    other_mass = 0.0
-    for k, spec in enumerate(args.molecules):
-        name, mol = load_molecule(spec)
-        mass = mol.get_masses().sum()
-        if k == 0:
-            continue
-        n = int(spec.split(":")[1])
-        other_mass += n * mass
+    for name, mol, n in mols:
         write(f"packmol_files/{name}.xyz", mol)
         blocks.append(f"structure packmol_files/{name}.xyz\n  number {n}\n  {inside}\n"
                       "end structure")
-        report.append(f"{n} {name}")
-    name0, mol0 = load_molecule(args.molecules[0])
-    mass0 = mol0.get_masses().sum()
-    free = volume - excluded
-    n0 = int((args.density * free / (AMU_TO_G * 1e24) - other_mass) / mass0)
-    if n0 <= 0:
-        sys.exit("no room for the first molecule: check box, density and the added molecules")
-    write(f"packmol_files/{name0}.xyz", mol0)
-    blocks.insert(1 if args.solute else 0,
-                  f"structure packmol_files/{name0}.xyz\n  number {n0}\n  {inside}\n"
-                  "end structure")
-    report.insert(0, f"{n0} {name0}")
+    report = [f"{n} {name}" for name, _, n in mols]
 
     with open("packmol.inp", "w") as fh:
         seed = "" if args.seed is None else f"seed {args.seed}\n"

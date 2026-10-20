@@ -52,13 +52,22 @@ ReaxFF (`ffield.reax.Fe_O_C_H`, LAMMPS `potentials/`) in place of the
 MLIP. ReaxFF needs `units real` and charges, so the check input differs
 more than the others: `atom_style charge` (the data file converted with
 zero charges), `fix qeq/reaxff`, timestep 0.25 fs, the times in fs.
-Serial CPU build, about 20 steps per second for 1025 atoms.
+Serial CPU build, 13-15 steps per second for 1025 atoms.
 
-Times: t_heat 1, t_hold 2, t_cool 1 ps (26 min). The stages run as
-intended: molecules and thermostatted layer between 760 and 890 K in the
-hold; after the cooling 319 K (molecules) and 329 K (`thermo_bot`), while
-`surf_bot`, not thermostatted, is still at 425 K. The counts stay at
-191 H₂O, 0 OH, 0 H₂: no reaction in 2 ps at 800 K (production holds are
-hundreds of ps). The final minimization stopped with `linesearch alpha is
-zero` after 2240 iterations: check `fmax` in the log before using the
-minimized structure. Log in `reference/`.
+Times: t_heat 1, t_hold 2, t_cool 1 ps (19 min), then the minimization
+(14 min). The stages run as intended: in the hold (set 800 K) the
+molecules stay between 741 and 839 K and `thermo_bot` between 681 and
+886 K; after the cooling 319 K (molecules) and 329 K (`thermo_bot`), while
+`surf_bot`, not thermostatted, is still at 425 K. The spike of the
+molecule temperature in the first 0.05 ps is the packed water relaxing
+(no minimization before the MD). The counts stay at 191 H₂O, 0 OH, 0 H₂:
+no reaction in 2 ps at 800 K (production holds are hundreds of ps). The
+final minimization stopped with `linesearch alpha is zero` after 2240
+iterations (force two-norm 777 → 18 kcal/mol/Å): check `fmax` in the
+log before using the minimized structure. Log in `reference/`.
+
+![high-temperature run](reference/highT_cpu-serial.png)
+
+Temperatures of the three groups (left; heat, hold, cool), molecule
+counts (middle; OH and H₂ stay at 0) and the system after cooling and
+minimization (right).

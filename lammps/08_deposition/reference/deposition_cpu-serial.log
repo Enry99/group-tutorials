@@ -3,8 +3,8 @@ OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
   using 1 OpenMP thread(s) per MPI task
 # Deposition (CVD/PVD-like): atoms (or molecules) are shot at the surface
 # at regular intervals; in cycles, the atoms that bounced back or desorbed
-# (no neighbours, far above the surface) are deleted, so they do not pile up
-# under the top wall.
+# (no neighbours, far above the surface, moving up) are deleted, so they do
+# not pile up under the top wall.
 # Usage: sbatch job.sh deposition.in      Needs: Si001.data, Si001.groups.lmp
 #
 # Groups (interface.py --no-top): layer_bot fixed, thermo_bot thermostat,
@@ -17,15 +17,19 @@ variable  type_dep  equal  1              # atom type deposited
 variable  T         equal  1000           # K, substrate
 variable  vz        equal  9.4            # A/ps towards the surface: sqrt(3 kB T/m) for Si at 1000 K
 variable  every     equal  2000           # steps between two insertions (2 ps)
-variable  ncycle    equal  5             # cycles ...
-variable  nper      equal  10             # ... of nper insertions each (here 400 atoms in 0.8 ns)
+variable  ncycle    equal  10             # cycles ...
+variable  nper      equal  10             # ... of nper insertions each (here 100 atoms in 200 ps)
 variable  zin       equal  25.0           # A above the top of the substrate where atoms are inserted
+# The film grows by about N/(n A): 100 Si (n = 0.05 atoms/A^3) on 236 A^2 = 8.5 A.
+# Keep the insertion region well above the final film (zin, and the vacuum of
+# the data file above it), or the insertions fail (WARNING: One or more particle
+# depositions were unsuccessful).
 variable  rcut      equal  3.0            # A, "no neighbour within rcut" = free atom
 
 # ---------- system ----------
 units           metal                     # A, ps, eV, bar, K
 atom_style      atomic
-boundary        p p f                     # z not periodic, closed by a wall at the top
+boundary        p p f                     # z not periodic, closed by reflecting walls
 read_data       Si001.data
 Reading data file ...
   orthogonal box = (0 0 0) to (15.361188 15.361188 39.50425)
@@ -66,7 +70,7 @@ fix             nvt_bot   thermo_bot  nvt temp 1000 1000 0.1
 fix_modify      nvt_bot   temp temp_tbot
 WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
 fix             nve_surf  surf_bot    nve
-fix             wall      all wall/reflect zhi EDGE
+fix             wall      all wall/reflect zlo EDGE zhi EDGE   # an atom crossing a z face is lost
 
 # insertion region: a 5 A thick slab, zin above the substrate top
 variable        ztop equal $(bound(sub_bot,zmax))
@@ -79,11 +83,11 @@ group           deposited empty
 fix             nve_dep   deposited   nve
 # N atoms, type, every M steps, seed; "near": minimum distance from other atoms
 fix             dep deposited deposit $(v_ncycle*v_nper) ${type_dep} ${every} 48291                 region inject near 2.0 vz -${vz} -${vz} units box
-fix             dep deposited deposit 50 ${type_dep} ${every} 48291                 region inject near 2.0 vz -${vz} -${vz} units box
-fix             dep deposited deposit 50 1 ${every} 48291                 region inject near 2.0 vz -${vz} -${vz} units box
-fix             dep deposited deposit 50 1 2000 48291                 region inject near 2.0 vz -${vz} -${vz} units box
-fix             dep deposited deposit 50 1 2000 48291                 region inject near 2.0 vz -9.4 -${vz} units box
-fix             dep deposited deposit 50 1 2000 48291                 region inject near 2.0 vz -9.4 -9.4 units box
+fix             dep deposited deposit 100 ${type_dep} ${every} 48291                 region inject near 2.0 vz -${vz} -${vz} units box
+fix             dep deposited deposit 100 1 ${every} 48291                 region inject near 2.0 vz -${vz} -${vz} units box
+fix             dep deposited deposit 100 1 2000 48291                 region inject near 2.0 vz -${vz} -${vz} units box
+fix             dep deposited deposit 100 1 2000 48291                 region inject near 2.0 vz -9.4 -${vz} units box
+fix             dep deposited deposit 100 1 2000 48291                 region inject near 2.0 vz -9.4 -9.4 units box
 # Molecules instead of atoms (e.g. SiH4 from a molecule file, see README):
 #   molecule      sih4 SiH4.mol
 #   fix           dep deposited deposit N 0 ${every} 48291 region inject near 2.0 #                 mol sih4 vz -${vz} -${vz} units box
@@ -93,7 +97,9 @@ compute_modify  temp_dep dynamic/dof yes      # the number of atoms changes
 # ---------- free atoms, to be deleted ----------
 compute         cn all coord/atom cutoff ${rcut}
 compute         cn all coord/atom cutoff 3
-variable        is_free atom "c_cn==0 && z>v_ztop+5.0"
+# vz > 0: only atoms moving away from the surface (the ones just inserted
+# are also free and high, but move down)
+variable        is_free atom "c_cn==0 && vz>0 && z>v_ztop+5.0"
 group           free dynamic all var is_free every ${every}
 group           free dynamic all var is_free every 2000
 dynamic group free defined
@@ -116,7 +122,7 @@ velocity        mobile create ${T} 3719 dist gaussian mom yes rot no
 velocity        mobile create 1000 3719 dist gaussian mom yes rot no
 velocity        layer_bot set 0.0 0.0 0.0
 variable        icycle loop ${ncycle}
-variable        icycle loop 5
+variable        icycle loop 10
 label           cycle
   run           $(v_nper*v_every)
   run           20000
@@ -150,20 +156,20 @@ Per MPI rank memory allocation (min/avg/max) = 3.567 | 3.567 | 3.567 Mbytes
      16000   16                   136  -565.85354      952.65218      909.14485    
      18000   18                   137  -572.17391      984.29075      2085.7267    
      20000   20                   138  -570.72181      959.30963      957.07355    
-Loop time of 3.19467 on 1 procs for 20000 steps with 138 atoms
+Loop time of 3.9859 on 1 procs for 20000 steps with 138 atoms
 
-Performance: 540.901 ns/day, 0.044 hours/ns, 6260.434 timesteps/s, 863.940 katom-step/s
-99.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 433.528 ns/day, 0.055 hours/ns, 5017.686 timesteps/s, 692.441 katom-step/s
+97.7% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 3.0721     | 3.0721     | 3.0721     |   0.0 | 96.16
-Neigh   | 0.032452   | 0.032452   | 0.032452   |   0.0 |  1.02
-Comm    | 0.015816   | 0.015816   | 0.015816   |   0.0 |  0.50
-Output  | 0.0018777  | 0.0018777  | 0.0018777  |   0.0 |  0.06
-Modify  | 0.064542   | 0.064542   | 0.064542   |   0.0 |  2.02
-Other   |            | 0.00791    |            |       |  0.25
+Pair    | 3.8366     | 3.8366     | 3.8366     |   0.0 | 96.26
+Neigh   | 0.040308   | 0.040308   | 0.040308   |   0.0 |  1.01
+Comm    | 0.020724   | 0.020724   | 0.020724   |   0.0 |  0.52
+Output  | 0.0019146  | 0.0019146  | 0.0019146  |   0.0 |  0.05
+Modify  | 0.075067   | 0.075067   | 0.075067   |   0.0 |  1.88
+Other   |            | 0.01124    |            |       |  0.28
 
 Nlocal:            138 ave         138 max         138 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -178,8 +184,8 @@ Total # of neighbors = 3188
 Ave neighs/atom = 23.101449
 Neighbor list builds = 250
 Dangerous builds = 0
-  delete_atoms  group free
-Deleted 1 atoms, new total = 137
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 138
   write_restart deposition.restart
 System init for write_restart ...
 next            icycle
@@ -188,47 +194,47 @@ jump            SELF cycle
   run           20000
 Per MPI rank memory allocation (min/avg/max) = 4.83 | 4.83 | 4.83 Mbytes
    Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
-     20000   20                   137  -570.72181      959.30963      952.34674    
-     22000   22                   138  -575.29809      844.36333      1085.7097    
-     24000   24                   139  -579.29638      1062.5193      845.5246     
-     26000   26                   140  -582.53716      1058.588       1148.328     
-     28000   28                   141  -585.47648      1057.8444      1211.3602    
-     30000   30                   142  -591.28286      1125.7348      1209.9107    
-     32000   32                   143  -594.22663      1115.371       1081.9622    
-     34000   34                   144  -597.6803       928.17855      1469.5748    
-     36000   36                   145  -601.69442      1023.4822      1542.4224    
-     38000   38                   146  -609.2664       926.71978      1427.5862    
-     40000   40                   147  -611.30094      1019.0049      796.84921    
-Loop time of 3.97934 on 1 procs for 20000 steps with 147 atoms
+     20000   20                   138  -570.72181      959.30963      957.07355    
+     22000   22                   139  -580.76776      1098.7813      1183.6743    
+     24000   24                   140  -584.21063      1163.6176      1860.2281    
+     26000   26                   141  -586.85935      1010.3486      1127.2516    
+     28000   28                   142  -593.07906      917.97724      1303.5809    
+     30000   30                   143  -593.04836      849.33083      1296.8222    
+     32000   32                   144  -598.97461      868.42829      1374.6225    
+     34000   34                   145  -603.96245      923.34521      1272.5363    
+     36000   36                   146  -609.17393      927.09154      1484.5306    
+     38000   38                   147  -613.19063      830.80658      1107.7371    
+     40000   40                   148  -618.32948      995.43391      1144.685     
+Loop time of 4.71318 on 1 procs for 20000 steps with 148 atoms
 
-Performance: 434.243 ns/day, 0.055 hours/ns, 5025.962 timesteps/s, 738.816 katom-step/s
-99.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 366.631 ns/day, 0.065 hours/ns, 4243.415 timesteps/s, 628.025 katom-step/s
+98.2% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 3.8465     | 3.8465     | 3.8465     |   0.0 | 96.66
-Neigh   | 0.038248   | 0.038248   | 0.038248   |   0.0 |  0.96
-Comm    | 0.018525   | 0.018525   | 0.018525   |   0.0 |  0.47
-Output  | 0.0018677  | 0.0018677  | 0.0018677  |   0.0 |  0.05
-Modify  | 0.064416   | 0.064416   | 0.064416   |   0.0 |  1.62
-Other   |            | 0.009827   |            |       |  0.25
+Pair    | 4.534      | 4.534      | 4.534      |   0.0 | 96.20
+Neigh   | 0.04814    | 0.04814    | 0.04814    |   0.0 |  1.02
+Comm    | 0.025164   | 0.025164   | 0.025164   |   0.0 |  0.53
+Output  | 0.0021343  | 0.0021343  | 0.0021343  |   0.0 |  0.05
+Modify  | 0.090773   | 0.090773   | 0.090773   |   0.0 |  1.93
+Other   |            | 0.01302    |            |       |  0.28
 
-Nlocal:            147 ave         147 max         147 min
+Nlocal:            148 ave         148 max         148 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:            249 ave         249 max         249 min
+Nghost:            257 ave         257 max         257 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 Neighs:              0 ave           0 max           0 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-FullNghs:         3394 ave        3394 max        3394 min
+FullNghs:         3442 ave        3442 max        3442 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 
-Total # of neighbors = 3394
-Ave neighs/atom = 23.088435
-Neighbor list builds = 244
+Total # of neighbors = 3442
+Ave neighs/atom = 23.256757
+Neighbor list builds = 263
 Dangerous builds = 0
-  delete_atoms  group free
-Deleted 1 atoms, new total = 146
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 148
   write_restart deposition.restart
 System init for write_restart ...
 next            icycle
@@ -237,96 +243,47 @@ jump            SELF cycle
   run           20000
 Per MPI rank memory allocation (min/avg/max) = 4.831 | 4.831 | 4.831 Mbytes
    Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
-     40000   40                   146  -611.30094      1019.0049      785.19987    
-     42000   42                   147  -610.88952      983.86751      1202.969     
-     44000   44                   148  -616.42338      772.54827      1101.9788    
-     46000   46                   149  -620.24068      1016.5253      1472.8299    
-     48000   48                   150  -625.14353      1091.9906      1125.645     
-     50000   50                   151  -631.16631      869.90296      1410.3963    
-     52000   52                   152  -638.00431      1009.2024      1238.5644    
-     54000   54                   153  -641.59068      934.81906      988.11869    
-     56000   56                   154  -643.3508       1050.0392      1014.1081    
-     58000   58                   155  -648.74667      1085.0441      1248.9801    
-     60000   60                   156  -652.38652      1130.3896      899.64056    
-Loop time of 4.15372 on 1 procs for 20000 steps with 156 atoms
+     40000   40                   148  -618.32948      995.43391      1144.685     
+     42000   42                   149  -625.79256      1082.2885      1117.5678    
+     44000   44                   150  -628.91852      964.51393      1440.91      
+     46000   46                   151  -633.81048      994.86967      1319.4072    
+     48000   48                   152  -635.49763      1005.1632      1271.1639    
+     50000   50                   153  -638.05125      928.84728      1375.9565    
+     52000   52                   154  -645.9591       893.03768      932.4349     
+     54000   54                   155  -646.9267       1123.1234      928.7124     
+     56000   56                   156  -651.16193      1047.5476      1424.0745    
+     58000   58                   157  -657.65724      1003.4738      1414.4258    
+     60000   60                   158  -663.06142      802.2401       1025.6985    
+Loop time of 4.71068 on 1 procs for 20000 steps with 158 atoms
 
-Performance: 416.012 ns/day, 0.058 hours/ns, 4814.958 timesteps/s, 751.133 katom-step/s
-98.5% CPU use with 1 MPI tasks x 1 OpenMP threads
-
-MPI task timing breakdown:
-Section |  min time  |  avg time  |  max time  |%varavg| %total
----------------------------------------------------------------
-Pair    | 4.0167     | 4.0167     | 4.0167     |   0.0 | 96.70
-Neigh   | 0.03922    | 0.03922    | 0.03922    |   0.0 |  0.94
-Comm    | 0.019295   | 0.019295   | 0.019295   |   0.0 |  0.46
-Output  | 0.0020369  | 0.0020369  | 0.0020369  |   0.0 |  0.05
-Modify  | 0.066978   | 0.066978   | 0.066978   |   0.0 |  1.61
-Other   |            | 0.009465   |            |       |  0.23
-
-Nlocal:            156 ave         156 max         156 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:            269 ave         269 max         269 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-Neighs:              0 ave           0 max           0 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-FullNghs:         3688 ave        3688 max        3688 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-
-Total # of neighbors = 3688
-Ave neighs/atom = 23.641026
-Neighbor list builds = 243
-Dangerous builds = 0
-  delete_atoms  group free
-Deleted 1 atoms, new total = 155
-  write_restart deposition.restart
-System init for write_restart ...
-next            icycle
-jump            SELF cycle
-  run           $(v_nper*v_every)
-  run           20000
-Per MPI rank memory allocation (min/avg/max) = 4.831 | 4.831 | 4.831 Mbytes
-   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
-     60000   60                   155  -652.38652      1130.3896      895.9772     
-     62000   62                   156  -652.28596      1031.4902      867.0307     
-     64000   64                   157  -658.51874      991.09394      1248.4209    
-     66000   66                   158  -663.38023      891.99185      1168.5602    
-     68000   68                   159  -666.687        1215.7957      1308.6585    
-     70000   70                   160  -672.7358       1027.319       1377.3884    
-     72000   72                   161  -675.15613      1006.0124      1272.8086    
-     74000   74                   162  -676.98339      709.91114      1040.789     
-     76000   76                   163  -685.15762      1028.6975      1268.3643    
-     78000   78                   164  -687.48084      936.46985      1153.6893    
-     80000   80                   165  -694.277        856.44975      1156.7124    
-Loop time of 4.62676 on 1 procs for 20000 steps with 165 atoms
-
-Performance: 373.479 ns/day, 0.064 hours/ns, 4322.675 timesteps/s, 713.241 katom-step/s
-98.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 366.826 ns/day, 0.065 hours/ns, 4245.676 timesteps/s, 670.817 katom-step/s
+98.6% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 4.4792     | 4.4792     | 4.4792     |   0.0 | 96.81
-Neigh   | 0.041279   | 0.041279   | 0.041279   |   0.0 |  0.89
-Comm    | 0.021457   | 0.021457   | 0.021457   |   0.0 |  0.46
-Output  | 0.0020721  | 0.0020721  | 0.0020721  |   0.0 |  0.04
-Modify  | 0.072439   | 0.072439   | 0.072439   |   0.0 |  1.57
-Other   |            | 0.01034    |            |       |  0.22
+Pair    | 4.5477     | 4.5477     | 4.5477     |   0.0 | 96.54
+Neigh   | 0.046488   | 0.046488   | 0.046488   |   0.0 |  0.99
+Comm    | 0.022527   | 0.022527   | 0.022527   |   0.0 |  0.48
+Output  | 0.0020852  | 0.0020852  | 0.0020852  |   0.0 |  0.04
+Modify  | 0.080112   | 0.080112   | 0.080112   |   0.0 |  1.70
+Other   |            | 0.0118     |            |       |  0.25
 
-Nlocal:            165 ave         165 max         165 min
+Nlocal:            158 ave         158 max         158 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:            278 ave         278 max         278 min
+Nghost:            264 ave         264 max         264 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 Neighs:              0 ave           0 max           0 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-FullNghs:         3846 ave        3846 max        3846 min
+FullNghs:         3592 ave        3592 max        3592 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 
-Total # of neighbors = 3846
-Ave neighs/atom = 23.309091
-Neighbor list builds = 232
+Total # of neighbors = 3592
+Ave neighs/atom = 22.734177
+Neighbor list builds = 251
 Dangerous builds = 0
-  delete_atoms  group free
-Deleted 1 atoms, new total = 164
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 158
   write_restart deposition.restart
 System init for write_restart ...
 next            icycle
@@ -335,51 +292,345 @@ jump            SELF cycle
   run           20000
 Per MPI rank memory allocation (min/avg/max) = 4.832 | 4.832 | 4.832 Mbytes
    Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
-     80000   80                   164  -694.277        856.44975      1161.3359    
-     82000   82                   165  -694.28366      871.31504      1099.8549    
-     84000   84                   166  -697.76597      831.4213       1178.1465    
-     86000   86                   167  -699.76637      1032.9256      1072.929     
-     88000   88                   168  -705.00888      952.09227      1013.4233    
-     90000   90                   169  -707.59938      1029.1181      1058.2245    
-     92000   92                   170  -715.34769      982.5644       1400.5452    
-     94000   94                   171  -720.18532      986.29984      1099.1619    
-     96000   96                   172  -721.517        872.29392      987.10646    
-     98000   98                   173  -724.51842      958.67705      1023.2227    
-    100000   100                  174  -731.23869      1242.402       1073.9031    
-Loop time of 4.79277 on 1 procs for 20000 steps with 174 atoms
+     60000   60                   158  -663.06142      802.2401       1025.6985    
+     62000   62                   159  -664.70878      915.88392      1021.9842    
+     64000   64                   160  -669.21136      1073.755       1190.3356    
+     66000   66                   161  -674.54024      1182.0351      1158.1887    
+     68000   68                   162  -679.70225      1027.8255      1148.268     
+     70000   70                   163  -684.04432      1312.8197      1554.6391    
+     72000   72                   164  -688.68892      840.49544      1531.2914    
+     74000   74                   165  -690.87452      1104.4756      1443.0734    
+     76000   76                   166  -697.46046      946.03246      1765.0142    
+     78000   78                   167  -696.0091       1010.1958      1339.1279    
+     80000   80                   168  -699.6361       811.62428      1855.2929    
+Loop time of 5.7873 on 1 procs for 20000 steps with 168 atoms
 
-Performance: 360.543 ns/day, 0.067 hours/ns, 4172.949 timesteps/s, 726.093 katom-step/s
+Performance: 298.585 ns/day, 0.080 hours/ns, 3455.843 timesteps/s, 580.582 katom-step/s
 97.7% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 4.6431     | 4.6431     | 4.6431     |   0.0 | 96.88
-Neigh   | 0.043604   | 0.043604   | 0.043604   |   0.0 |  0.91
-Comm    | 0.021163   | 0.021163   | 0.021163   |   0.0 |  0.44
-Output  | 0.0019156  | 0.0019156  | 0.0019156  |   0.0 |  0.04
-Modify  | 0.072701   | 0.072701   | 0.072701   |   0.0 |  1.52
-Other   |            | 0.01029    |            |       |  0.21
+Pair    | 5.5798     | 5.5798     | 5.5798     |   0.0 | 96.41
+Neigh   | 0.068479   | 0.068479   | 0.068479   |   0.0 |  1.18
+Comm    | 0.026511   | 0.026511   | 0.026511   |   0.0 |  0.46
+Output  | 0.0024414  | 0.0024414  | 0.0024414  |   0.0 |  0.04
+Modify  | 0.095642   | 0.095642   | 0.095642   |   0.0 |  1.65
+Other   |            | 0.01444    |            |       |  0.25
 
-Nlocal:            174 ave         174 max         174 min
+Nlocal:            168 ave         168 max         168 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:            294 ave         294 max         294 min
+Nghost:            268 ave         268 max         268 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 Neighs:              0 ave           0 max           0 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-FullNghs:         4038 ave        4038 max        4038 min
+FullNghs:         3744 ave        3744 max        3744 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 
-Total # of neighbors = 4038
-Ave neighs/atom = 23.206897
-Neighbor list builds = 242
+Total # of neighbors = 3744
+Ave neighs/atom = 22.285714
+Neighbor list builds = 335
 Dangerous builds = 0
-  delete_atoms  group free
-Deleted 1 atoms, new total = 173
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 168
+  write_restart deposition.restart
+System init for write_restart ...
+next            icycle
+jump            SELF cycle
+  run           $(v_nper*v_every)
+  run           20000
+Per MPI rank memory allocation (min/avg/max) = 4.833 | 4.833 | 4.833 Mbytes
+   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
+     80000   80                   168  -699.6361       811.62428      1855.2929    
+     82000   82                   169  -703.85531      1218.3702      1828.1767    
+     84000   84                   170  -711.50481      1198.6381      1904.0489    
+     86000   86                   171  -717.90788      1031.2079      2133.7642    
+     88000   88                   172  -717.22031      822.82687      1753.1172    
+     90000   90                   173  -723.39422      1084.1159      2190.0777    
+     92000   92                   174  -726.48634      868.23334      1885.596     
+     94000   94                   175  -723.56508      1114.034       1807.2998    
+     96000   96                   176  -731.3253       974.04783      1996.5876    
+     98000   98                   177  -735.47388      1033.0643      1867.6602    
+    100000   100                  178  -742.85918      1121.1103      1877.4578    
+Loop time of 6.0381 on 1 procs for 20000 steps with 178 atoms
+
+Performance: 286.183 ns/day, 0.084 hours/ns, 3312.301 timesteps/s, 589.590 katom-step/s
+98.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.8051     | 5.8051     | 5.8051     |   0.0 | 96.14
+Neigh   | 0.097384   | 0.097384   | 0.097384   |   0.0 |  1.61
+Comm    | 0.026415   | 0.026415   | 0.026415   |   0.0 |  0.44
+Output  | 0.0022381  | 0.0022381  | 0.0022381  |   0.0 |  0.04
+Modify  | 0.093398   | 0.093398   | 0.093398   |   0.0 |  1.55
+Other   |            | 0.01356    |            |       |  0.22
+
+Nlocal:            178 ave         178 max         178 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            298 ave         298 max         298 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         3872 ave        3872 max        3872 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 3872
+Ave neighs/atom = 21.752809
+Neighbor list builds = 470
+Dangerous builds = 0
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 178
+  write_restart deposition.restart
+System init for write_restart ...
+next            icycle
+jump            SELF cycle
+  run           $(v_nper*v_every)
+  run           20000
+Per MPI rank memory allocation (min/avg/max) = 4.834 | 4.834 | 4.834 Mbytes
+   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
+    100000   100                  178  -742.85918      1121.1103      1877.4578    
+    102000   102                  179  -751.16787      822.24557      1626.5591    
+    104000   104                  180  -755.82903      990.51285      2003.3082    
+    106000   106                  181  -756.40897      939.63726      1836.7166    
+    108000   108                  182  -758.42747      1181.5624      1699.2935    
+    110000   110                  183  -766.65392      1085.8717      2384.8734    
+    112000   112                  184  -765.5128       953.93013      2021.0651    
+    114000   114                  185  -767.60267      1079.1928      1970.3241    
+    116000   116                  186  -770.1153       874.74324      2500.963     
+    118000   118                  187  -772.89107      1202.9937      2643.8646    
+    120000   120                  188  -775.58742      1217.9552      2481.5694    
+Loop time of 6.76581 on 1 procs for 20000 steps with 188 atoms
+
+Performance: 255.402 ns/day, 0.094 hours/ns, 2956.038 timesteps/s, 555.735 katom-step/s
+97.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 6.4811     | 6.4811     | 6.4811     |   0.0 | 95.79
+Neigh   | 0.12436    | 0.12436    | 0.12436    |   0.0 |  1.84
+Comm    | 0.031197   | 0.031197   | 0.031197   |   0.0 |  0.46
+Output  | 0.0041441  | 0.0041441  | 0.0041441  |   0.0 |  0.06
+Modify  | 0.10806    | 0.10806    | 0.10806    |   0.0 |  1.60
+Other   |            | 0.01693    |            |       |  0.25
+
+Nlocal:            188 ave         188 max         188 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            308 ave         308 max         308 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         3896 ave        3896 max        3896 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 3896
+Ave neighs/atom = 20.723404
+Neighbor list builds = 570
+Dangerous builds = 0
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 188
+  write_restart deposition.restart
+System init for write_restart ...
+next            icycle
+jump            SELF cycle
+  run           $(v_nper*v_every)
+  run           20000
+Per MPI rank memory allocation (min/avg/max) = 4.835 | 4.835 | 4.835 Mbytes
+   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
+    120000   120                  188  -775.58742      1217.9552      2481.5694    
+    122000   122                  189  -781.70886      1084.5964      2529.4743    
+    124000   124                  190  -782.79391      1031.6675      2343.3847    
+    126000   126                  191  -797.71488      1000.1406      3182.7259    
+    128000   128                  192  -801.12558      1014.2919      2967.6375    
+    130000   130                  193  -803.91645      985.9102       2192.9535    
+    132000   132                  194  -809.04402      1035.5452      2433.4895    
+    134000   134                  195  -811.70738      1176.5804      2280.9982    
+    136000   136                  196  -817.30227      823.28497      1842.9405    
+    138000   138                  197  -823.25127      1020.2734      2168.2932    
+    140000   140                  198  -832.85603      1005.2736      2078.152     
+Loop time of 7.77577 on 1 procs for 20000 steps with 198 atoms
+
+Performance: 222.229 ns/day, 0.108 hours/ns, 2572.093 timesteps/s, 509.274 katom-step/s
+98.9% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 7.4655     | 7.4655     | 7.4655     |   0.0 | 96.01
+Neigh   | 0.13436    | 0.13436    | 0.13436    |   0.0 |  1.73
+Comm    | 0.034109   | 0.034109   | 0.034109   |   0.0 |  0.44
+Output  | 0.0027442  | 0.0027442  | 0.0027442  |   0.0 |  0.04
+Modify  | 0.12102    | 0.12102    | 0.12102    |   0.0 |  1.56
+Other   |            | 0.01801    |            |       |  0.23
+
+Nlocal:            198 ave         198 max         198 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            343 ave         343 max         343 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         4168 ave        4168 max        4168 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 4168
+Ave neighs/atom = 21.050505
+Neighbor list builds = 584
+Dangerous builds = 0
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 198
+  write_restart deposition.restart
+System init for write_restart ...
+next            icycle
+jump            SELF cycle
+  run           $(v_nper*v_every)
+  run           20000
+Per MPI rank memory allocation (min/avg/max) = 4.836 | 4.836 | 4.836 Mbytes
+   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
+    140000   140                  198  -832.85603      1005.2736      2078.152     
+    142000   142                  199  -832.31644      1001.2802      2123.0615    
+    144000   144                  200  -834.28095      1049.5182      2266.2128    
+    146000   146                  201  -836.97508      846.70981      1899.2178    
+    148000   148                  202  -845.94714      944.55757      2020.426     
+    150000   150                  203  -854.66401      1030.5693      2062.3222    
+    152000   152                  204  -858.92422      790.81905      1845.7787    
+    154000   154                  205  -863.62802      1025.2102      1929.0614    
+    156000   156                  206  -864.76392      1047.918       1895.4088    
+    158000   158                  207  -872.77661      872.78084      2219.1183    
+    160000   160                  208  -872.78292      1051.0129      2095.4865    
+Loop time of 8.92309 on 1 procs for 20000 steps with 208 atoms
+
+Performance: 193.655 ns/day, 0.124 hours/ns, 2241.375 timesteps/s, 466.206 katom-step/s
+92.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 8.5899     | 8.5899     | 8.5899     |   0.0 | 96.27
+Neigh   | 0.13591    | 0.13591    | 0.13591    |   0.0 |  1.52
+Comm    | 0.037194   | 0.037194   | 0.037194   |   0.0 |  0.42
+Output  | 0.0026789  | 0.0026789  | 0.0026789  |   0.0 |  0.03
+Modify  | 0.13885    | 0.13885    | 0.13885    |   0.0 |  1.56
+Other   |            | 0.01856    |            |       |  0.21
+
+Nlocal:            208 ave         208 max         208 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            366 ave         366 max         366 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         4238 ave        4238 max        4238 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 4238
+Ave neighs/atom = 20.375
+Neighbor list builds = 537
+Dangerous builds = 0
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 208
+  write_restart deposition.restart
+System init for write_restart ...
+next            icycle
+jump            SELF cycle
+  run           $(v_nper*v_every)
+  run           20000
+Per MPI rank memory allocation (min/avg/max) = 4.837 | 4.837 | 4.837 Mbytes
+   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
+    160000   160                  208  -872.78292      1051.0129      2095.4865    
+    162000   162                  209  -879.04053      882.86295      1988.6396    
+    164000   164                  210  -884.21793      832.32485      2138.7724    
+    166000   166                  211  -886.61962      859.8308       2267.681     
+    168000   168                  212  -893.47707      1385.1803      2490.089     
+    170000   170                  213  -896.48505      1027.8898      2551.4602    
+    172000   172                  214  -894.27672      1026.9764      2242.9419    
+    174000   174                  215  -892.27583      836.57578      2000.5581    
+    176000   176                  216  -905.10232      1033.0964      2502.1871    
+    178000   178                  217  -909.86074      855.58647      2565.5653    
+    180000   180                  218  -912.05277      1033.479       2445.933     
+Loop time of 8.216 on 1 procs for 20000 steps with 218 atoms
+
+Performance: 210.321 ns/day, 0.114 hours/ns, 2434.275 timesteps/s, 530.672 katom-step/s
+98.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 7.897      | 7.897      | 7.897      |   0.0 | 96.12
+Neigh   | 0.14599    | 0.14599    | 0.14599    |   0.0 |  1.78
+Comm    | 0.034339   | 0.034339   | 0.034339   |   0.0 |  0.42
+Output  | 0.0026767  | 0.0026767  | 0.0026767  |   0.0 |  0.03
+Modify  | 0.11949    | 0.11949    | 0.11949    |   0.0 |  1.45
+Other   |            | 0.01652    |            |       |  0.20
+
+Nlocal:            218 ave         218 max         218 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            354 ave         354 max         354 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         4436 ave        4436 max        4436 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 4436
+Ave neighs/atom = 20.348624
+Neighbor list builds = 606
+Dangerous builds = 0
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 0 atoms, new total = 218
+  write_restart deposition.restart
+System init for write_restart ...
+next            icycle
+jump            SELF cycle
+  run           $(v_nper*v_every)
+  run           20000
+Per MPI rank memory allocation (min/avg/max) = 4.838 | 4.838 | 4.838 Mbytes
+   Step          Time         Atoms        PotEng      c_temp_tbot     c_temp_dep  
+    180000   180                  218  -912.05277      1033.479       2445.933     
+    182000   182                  219  -914.16008      1083.4126      1927.2551    
+    184000   184                  220  -923.80233      1031.2034      1972.6424    
+    186000   186                  221  -927.3247       1102.7905      1941.3348    
+    188000   188                  222  -932.19452      809.08608      2078.1133    
+    190000   190                  223  -934.53931      1214.6074      2122.7173    
+    192000   192                  224  -936.21497      895.53249      2124.5167    
+    194000   194                  225  -939.30064      940.0772       2160.2918    
+    196000   196                  226  -939.65347      1027.84        2172.3283    
+    198000   198                  227  -951.43633      1129.1971      2259.3348    
+    200000   200                  228  -951.19315      1012.8862      1926.6244    
+Loop time of 9.28814 on 1 procs for 20000 steps with 228 atoms
+
+Performance: 186.044 ns/day, 0.129 hours/ns, 2153.283 timesteps/s, 490.948 katom-step/s
+97.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 8.9584     | 8.9584     | 8.9584     |   0.0 | 96.45
+Neigh   | 0.14805    | 0.14805    | 0.14805    |   0.0 |  1.59
+Comm    | 0.035634   | 0.035634   | 0.035634   |   0.0 |  0.38
+Output  | 0.0028439  | 0.0028439  | 0.0028439  |   0.0 |  0.03
+Modify  | 0.12508    | 0.12508    | 0.12508    |   0.0 |  1.35
+Other   |            | 0.01809    |            |       |  0.19
+
+Nlocal:            228 ave         228 max         228 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            411 ave         411 max         411 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         4550 ave        4550 max        4550 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 4550
+Ave neighs/atom = 19.95614
+Neighbor list builds = 568
+Dangerous builds = 0
+  delete_atoms  group free compress no     # keep the IDs of the other atoms
+Deleted 1 atoms, new total = 227
   write_restart deposition.restart
 System init for write_restart ...
 next            icycle
 jump            SELF cycle
 write_data      deposition.data nocoeff
 System init for write_data ...
-Total wall time: 0:00:20
+Total wall time: 0:01:06

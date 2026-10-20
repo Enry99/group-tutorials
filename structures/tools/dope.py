@@ -31,7 +31,7 @@ from ase.geometry import get_distances
 from ase.io import read
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import density, write_structure  # noqa: E402
+from common import density, extension, write_structure  # noqa: E402
 
 
 def parse(items):
@@ -100,7 +100,7 @@ def main():
           f"{density(atoms):.3f} g/cm^3")
     stem = os.path.splitext(os.path.basename(args.structure))[0]
     tag = "_".join(f"{s}{round(f * 100)}" for s, f in {**subs, **inters}.items())
-    ext = {"extxyz": "extxyz", "lammps-data": "data"}.get(args.format, args.format)
+    ext = extension(args.format)
     out = args.output or f"{stem}_{tag}.{ext}"
     write_structure(out, atoms, args.format, args.specorder)
     print(f"-> {out}")

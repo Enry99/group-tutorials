@@ -24,6 +24,11 @@ def force_per_atom(pressure_gpa, area_a2, natoms):
     return total_n / natoms / EV_PER_A_TO_N
 
 
+def extension(fmt):
+    """File extension for an ASE format name (lammps-data -> data)."""
+    return {"lammps-data": "data"}.get(fmt, fmt)
+
+
 def write_structure(path, atoms, fmt="extxyz", specorder=None):
     """ASE write; lammps-data with masses, atom_style atomic and the type order
     of pair_coeff (specorder)."""

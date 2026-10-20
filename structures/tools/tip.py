@@ -37,7 +37,7 @@ from ase.io import read
 from ase.neighborlist import natural_cutoffs, neighbor_list
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import sort_z, write_structure  # noqa: E402
+from common import extension, sort_z, write_structure  # noqa: E402
 
 D_OH = 0.97
 
@@ -138,7 +138,7 @@ def main():
           f"{np.round(atoms.cell.lengths(), 3)} A; flat-face area pi R^2 = "
           f"{np.pi * args.radius ** 2:.1f} A^2")
     stem = os.path.splitext(os.path.basename(args.bulk))[0]
-    ext = {"extxyz": "extxyz", "lammps-data": "data"}.get(args.format, args.format)
+    ext = extension(args.format)
     out = args.output or f"{stem}_tip_R{args.radius:g}.{ext}"
     write_structure(out, atoms, args.format, args.specorder)
     print(f"-> {out}")

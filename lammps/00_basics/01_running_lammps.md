@@ -6,10 +6,10 @@
 /leonardo/pub/userexternal/epedrett/software/lammps-22Jul2026/build/lmp
 ```
 
-LAMMPS stable 22 Jul 2025 (Update 4), built with Kokkos for the A100 GPUs
-and the ML-IAP package with Python, which runs MACE models
-(`03_mlip_pair_styles.md`). The folder name has the wrong year. Check the
-version and the packages of any binary with `lmp -h | head -40`. It needs:
+LAMMPS 30 Mar 2026, development version (git commit 16f8568), built with
+Kokkos for the A100 GPUs and the ML-IAP package with Python, which runs
+MACE models (`03_mlip_pair_styles.md`). Check the version and the packages
+of any binary with `lmp -h | head -40`. It needs:
 
 ```bash
 module purge
@@ -68,3 +68,8 @@ input that begins with `read_restart`.
   GPUs really make the run faster for your system size.
 - `WARNING: Temperature for fix modify is not for group all`: expected in
   the templates (a thermostat on a region with its own temperature compute).
+- With `-sf kk`, styles without a Kokkos version run on the CPU and copy
+  data between CPU and GPU at every step. In the templates: `fix move`,
+  `fix rigid`, `fix deposit`, `compute reduce`. With a MLIP the model
+  dominates the cost, but check the timing breakdown at the end of the log
+  (`Modify` line) if a run is slower than expected.
