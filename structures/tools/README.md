@@ -9,7 +9,7 @@ one. All of them write `.extxyz` by default, other formats with `-f`
 |---|---|
 | `slab.py` | slabs of any bulk and Miller index, one file per termination; stoichiometry and top/bottom planes printed; c along z, vacuum, supercell (pymatgen) |
 | `zsl_interface.py` | coherent interface of two crystals by lattice matching: list of matches (area, strain), chosen interface and the two strained slabs (pymatgen) |
-| `density.py` | repeat a bulk and scale it to a target density; `--xy` keeps the lateral cell of the slab it will sit on |
+| `density.py` | repeat a bulk and scale it to a target density; `--xy` keeps the lateral cell of the slab it will sit on; `--remove FORMULA` keeps the cell and removes formula units |
 | `dope.py` | random substitutions (fraction of all atoms) and interstitials (covalent-radius check) |
 | `packmol.py` | molecules in a box (or the lateral cell of a slab) at a target density, optionally around a fixed solute (packmol) |
 | `interface.py` | bottom slab / middle / top slab or tip (or no top, `--no-top`) → LAMMPS data, `<name>.groups.lmp` with the groups, force per atom for a load |

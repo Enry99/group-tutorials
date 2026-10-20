@@ -120,9 +120,19 @@ changing `timestep` keeps the physical times.
   at the reference and a σ(E) that stops decreasing with dt.
 - **Deuterium mass.** The H velocities are scaled by √(m_H/m_D), so the
   temperature is kept. Averages over configurations (structure, density,
-  load-bearing) are the same in classical MD; dynamics is not (vibrations,
-  diffusion and rates of H, energy dissipation): check it on the
-  quantities you report before using it in production.
+  coordination) do not depend on the masses in classical MD; dynamics
+  does: vibrations, diffusion and rates of H, energy dissipation. In
+  sliding this matters: AFM friction on H-terminated diamond and Si is
+  higher than on D-terminated surfaces (Cannara et al., Science 318, 780
+  (2007), doi:10.1126/science.1147550). Use the mass of D for stages where
+  only the configurations count (thermalization, load ramp, melt-quench,
+  annealing) and the mass of H, with the timestep of this test, for
+  friction and tribochemistry. Car-Parrinello AIMD of tribology uses D for
+  another reason, the adiabatic separation of electrons and ions (e.g.
+  Kajita and Righi, Carbon 103, 193 (2016),
+  doi:10.1016/j.carbon.2016.02.078). Mass repartitioning (mass moved from
+  the heavy atom to its H) assumes fixed bonds: not for reactive MLIPs,
+  where H changes partner.
 - **Equilibration of H.** X-H stretches are above the phonon frequencies
   of most lattices and exchange energy slowly with a thermostat that acts
   on the slab only: `TinH` can lag behind the thermostat. Start from a

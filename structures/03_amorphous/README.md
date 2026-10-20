@@ -2,7 +2,7 @@
 
 Amorphous solids (a-C, DLC, a-SiNₓ:H, oxide films) are made in MD by
 melt-quench: a crystal at the right composition and density is melted,
-equilibrated as a liquid and cooled (`lammps/`, to come). The starting
+equilibrated as a liquid and cooled (`lammps/03_meltquench`). The starting
 structure only has to fix composition, number of atoms and density: the
 melt forgets the crystal. Here you build it from a bulk crystal by
 substitution, insertion and rescaling.
@@ -10,7 +10,8 @@ substitution, insertion and rescaling.
 - `tools/dope.py`: random substitutions (fraction of all atoms) and
   interstitials (with a check on covalent radii).
 - `tools/density.py`: repetition and scaling to the target density, on all
-  sides or only along z (`--xy`, for a film on a given slab).
+  sides or only along z (`--xy`, for a film on a given slab), or removal
+  of formula units at fixed cell (`--remove`).
 
 ## 1. Doped DLC: Si and H in carbon at 3.0 g/cm³
 
@@ -75,7 +76,35 @@ irrelevant for a melt-quench. `--specorder Fe Ti O` already contains Fe,
 so the same type numbering works when the film is put on the Fe slab.
 
 Choose `--repeat` so that the number of atoms gives the cell you need: N
-fixes the volume at a given density. The full outputs are in `reference/`.
+fixes the volume at a given density.
+
+## 4. Keep the whole cell: remove formula units
+
+When the cell must not change (it already matches the slab in x, y and
+the thickness is the one you want), `--remove FORMULA` lowers the density
+by deleting whole formula units at random, so the composition stays the
+same. The SiN and SiO₂ notebooks of the group did this with Si₃N₄ and
+SiO₂ units.
+
+```bash
+python ../tools/density.py ../bulk/TiO2_rutile.cif --repeat 4 4 6 --target 3.8 \
+       --remove TiO2 -o TiO2_3.8_cell_kept.extxyz
+```
+
+```
+start: 576 atoms, cell 18.3760 x 18.3760 x 17.7540 A, density 4.247 g/cm^3
+removed 20 units of TiO2 (60 atoms)
+final: 516 atoms, cell 18.3760 x 18.3760 x 17.7540 A, density 3.805 g/cm^3
+```
+
+- Only whole units are removed, so the density is the closest reachable
+  (3.805 for 3.8 here); a larger cell gets closer.
+- With `--xy` the lateral sides are set first, then units are removed
+  instead of scaling c.
+- `--seed` picks other positions. The vacancies are irrelevant for a
+  melt-quench; for a crystalline film they are defects.
+
+The full outputs are in `reference/`.
 
 ## Notes
 
