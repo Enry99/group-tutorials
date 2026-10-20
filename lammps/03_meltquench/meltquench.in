@@ -1,0 +1,72 @@
+# Melt-quench: amorphous bulk from a crystal at the target density.
+# Stages (NVT, fixed cell = fixed density):
+#   1. heat     T0 -> Tmelt           in t_heat
+#   2. melt     Tmelt                 for t_melt  (the liquid forgets the crystal)
+#   3. quench   Tmelt -> T0           at the quench rate
+#   4. anneal   T0                    for t_anneal
+#   5. (optional) NPT at T0 and P: the potential chooses the density
+# Usage: sbatch job.sh meltquench.in      Needs: aC_start.data (structures/03_amorphous)
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "C"            # element of each atom type, in the order of the data file
+variable  T0        equal  300            # K, start and final temperature
+variable  Tmelt     equal  6000           # K, well above the melting point of the potential
+variable  t_heat    equal  10             # ps
+variable  t_melt    equal  20             # ps
+variable  rate      equal  25             # K/ps quench rate (25 K/ps = 2.5e13 K/s)
+variable  t_anneal  equal  20             # ps
+variable  do_npt    equal  0              # 1: add stage 5
+variable  P         equal  0.0            # bar, stage 5
+variable  t_npt     equal  50             # ps, stage 5
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       aC_start.data
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- output ----------
+thermo          1000
+thermo_style    custom step time temp pe etotal press vol density
+dump            traj all custom 1000 meltquench.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H (and at 6000 K check the drift)
+variable        tdamp equal 100.0*dt
+velocity        all create ${T0} 4928 dist gaussian mom yes rot yes
+
+# ---------- 1. heat ----------
+fix             thermostat all nvt temp ${T0} ${Tmelt} ${tdamp}
+run             $(round(v_t_heat/dt))
+write_restart   1_heat.restart
+
+# ---------- 2. melt ----------
+fix             thermostat all nvt temp ${Tmelt} ${Tmelt} ${tdamp}
+run             $(round(v_t_melt/dt))
+write_restart   2_melt.restart
+
+# ---------- 3. quench ----------
+variable        t_quench equal (v_Tmelt-v_T0)/v_rate
+print           "quench: ${Tmelt} -> ${T0} K in ${t_quench} ps"
+fix             thermostat all nvt temp ${Tmelt} ${T0} ${tdamp}
+run             $(round(v_t_quench/dt))
+write_restart   3_quench.restart
+
+# ---------- 4. anneal ----------
+fix             thermostat all nvt temp ${T0} ${T0} ${tdamp}
+run             $(round(v_t_anneal/dt))
+write_restart   4_anneal.restart
+write_data      meltquench.data nocoeff
+
+# ---------- 5. NPT (optional) ----------
+if "${do_npt} == 1" then &
+  "unfix thermostat" &
+  "fix thermostat all npt temp ${T0} ${T0} ${tdamp} iso ${P} ${P} $(1000.0*dt)" &
+  "run $(round(v_t_npt/dt))" &
+  "write_restart 5_npt.restart" &
+  "write_data meltquench_npt.data nocoeff"

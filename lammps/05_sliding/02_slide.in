@@ -1,0 +1,71 @@
+# Sliding interface, part 2: slide layer_top along x at constant normal load.
+# The x velocity of layer_top is imposed (accelerated from 0 to v in t_acc),
+# its z coordinate is free under the load: the gap adjusts. The friction
+# force is the x force of the system on layer_top (f_load[1]).
+# Usage: sbatch job.sh 02_slide.in        Needs: load.restart (01_load.in)
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe O H"       # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  P         equal  1.0            # GPa, same as 01_load.in
+variable  v         equal  10.0           # m/s sliding velocity (1 m/s = 0.01 A/ps)
+variable  t_acc     equal  20             # ps, linear acceleration 0 -> v (0: start at v)
+variable  t_slide   equal  1000           # ps at v (10 m/s x 1 ns = 10 nm)
+
+# ---------- system ----------
+read_restart    load.restart              # atoms, cell, groups; not the fixes, computes, variables
+reset_timestep  0                         # time 0 = start of sliding (see README)
+
+# ---------- potential (not stored in the restart) ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- load ----------
+variable        area equal lx*ly
+variable        ntop equal count(layer_top)
+variable        fz equal -${P}*1.0e9*${area}*1.0e-20/${ntop}/1.602176634e-9
+
+# ---------- integration ----------
+timestep        0.0005                    # ps, as in 01_load.in
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+compute         temp_ttop thermo_top temp/com
+compute         temp_int  intercalate temp/com
+compute         temp_mol  molecules temp/com     # remove if there are no molecules
+
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
+fix             nvt_bot   thermo_bot  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_top   thermo_top  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_top   temp temp_ttop
+fix             nve_int   intercalate nve
+fix             load      layer_top   addforce 0.0 0.0 ${fz}
+
+# layer_top: vx imposed by the variable vx, y and z integrated (NULL NULL)
+# under the forces, including the load. No other integrator on layer_top.
+variable        vA equal ${v}*0.01                       # A/ps
+variable        nacc equal round(v_t_acc/dt)
+if "${nacc} > 0" then &
+  "variable vx equal v_vA*ternary(step<v_nacc,step/v_nacc,1.0)" &
+else &
+  "variable vx equal v_vA"
+fix             slide     layer_top   move variable NULL NULL NULL v_vx NULL NULL
+
+# ---------- output ----------
+# f_load[1]: friction force on layer_top (total over the group, eV/A);
+# shear stress = f_load[1]/(lx*ly) eV/A^3, x 160.2 for GPa
+variable        ztop equal xcm(layer_top,z)
+variable        zbot equal xcm(layer_bot,z)
+variable        gap  equal v_ztop-v_zbot
+variable        xtop equal xcm(layer_top,x)
+thermo          200
+thermo_style    custom step time pe c_temp_int c_temp_mol c_temp_tbot c_temp_ttop &
+                f_load[1] f_load[3] f_hold_bot[1] f_hold_bot[3] v_gap v_xtop v_vx
+thermo_modify   flush yes
+dump            traj all custom 2000 02_slide.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+restart         100000 02_slide.*.restart
+
+run             $(v_nacc+round(v_t_slide/dt))
+write_restart   slide.restart

@@ -1,0 +1,83 @@
+# Deposition (CVD/PVD-like): atoms (or molecules) are shot at the surface
+# at regular intervals; in cycles, the atoms that bounced back or desorbed
+# (no neighbours, far above the surface) are deleted, so they do not pile up
+# under the top wall.
+# Usage: sbatch job.sh deposition.in      Needs: Si001.data, Si001.groups.lmp
+#
+# Groups (interface.py --no-top): layer_bot fixed, thermo_bot thermostat,
+# surf_bot NVE. The deposited atoms go to the group "deposited" (NVE).
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Si"           # element of each atom type, in the order of the data file
+variable  type_dep  equal  1              # atom type deposited
+variable  T         equal  1000           # K, substrate
+variable  vz        equal  9.4            # A/ps towards the surface: sqrt(3 kB T/m) for Si at 1000 K
+variable  every     equal  2000           # steps between two insertions (2 ps)
+variable  ncycle    equal  20             # cycles ...
+variable  nper      equal  20             # ... of nper insertions each (here 400 atoms in 0.8 ns)
+variable  zin       equal  25.0           # A above the top of the substrate where atoms are inserted
+variable  rcut      equal  3.0            # A, "no neighbour within rcut" = free atom
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p f                     # z not periodic, closed by a wall at the top
+read_data       Si001.data
+include         Si001.groups.lmp
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- integration ----------
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
+fix             nvt_bot   thermo_bot  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nve_surf  surf_bot    nve
+fix             wall      all wall/reflect zhi EDGE
+
+# insertion region: a 5 A thick slab, zin above the substrate top
+variable        ztop equal $(bound(sub_bot,zmax))
+region          inject block EDGE EDGE EDGE EDGE $(v_ztop+v_zin) $(v_ztop+v_zin+5.0) units box
+group           deposited empty
+fix             nve_dep   deposited   nve
+# N atoms, type, every M steps, seed; "near": minimum distance from other atoms
+fix             dep deposited deposit $(v_ncycle*v_nper) ${type_dep} ${every} 48291 &
+                region inject near 2.0 vz -${vz} -${vz} units box
+# Molecules instead of atoms (e.g. SiH4 from a molecule file, see README):
+#   molecule      sih4 SiH4.mol
+#   fix           dep deposited deposit N 0 ${every} 48291 region inject near 2.0 &
+#                 mol sih4 vz -${vz} -${vz} units box
+compute         temp_dep deposited temp
+compute_modify  temp_dep dynamic/dof yes      # the number of atoms changes
+
+# ---------- free atoms, to be deleted ----------
+compute         cn all coord/atom cutoff ${rcut}
+variable        is_free atom "c_cn==0 && z>v_ztop+5.0"
+group           free dynamic all var is_free every ${every}
+# For H2 (or N2) products, as in the CVD runs of the group:
+#   compute     cn_HH atom_H coord/atom cutoff 0.9 group atom_H
+#   variable    is_free atom "type==<H type> && c_cn_HH==1"
+
+# ---------- output ----------
+thermo          ${every}
+thermo_style    custom step time atoms pe c_temp_tbot c_temp_dep
+thermo_modify   flush yes
+dump            traj all custom ${every} deposition.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+# ---------- run in cycles ----------
+velocity        mobile create ${T} 3719 dist gaussian mom yes rot no
+velocity        layer_bot set 0.0 0.0 0.0
+variable        icycle loop ${ncycle}
+label           cycle
+  run           $(v_nper*v_every)
+  delete_atoms  group free
+  write_restart deposition.restart
+next            icycle
+jump            SELF cycle
+write_data      deposition.data nocoeff

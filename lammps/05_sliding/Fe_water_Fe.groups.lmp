@@ -1,0 +1,13 @@
+# groups for Fe_water_Fe.data, written by interface.py
+group layer_bot   id <> 1 72
+group thermo_bot  id <> 73 288
+group surf_bot    id <> 289 432
+group molecules   id <> 433 1025
+group surf_top    id <> 1026 1169
+group thermo_top  id <> 1170 1385
+group layer_top   id <> 1386 1457
+group sub_bot     union layer_bot thermo_bot surf_bot
+group sub_top     union layer_top thermo_top surf_top
+group intercalate union surf_bot molecules surf_top
+group mobile      union thermo_bot intercalate thermo_top
+variable    load_force equal -0.03625158341   # eV/A per atom: 1.0 GPa on 418.19 A^2, 72 atoms

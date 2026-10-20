@@ -1,0 +1,3 @@
+# Time-averaged data for fix averages
+# TimeStep c_thermo_temp c_thermo_press v_rho v_a v_b v_c
+20000 301.054 63.565 7.93588 14.2953 14.2953 14.2953

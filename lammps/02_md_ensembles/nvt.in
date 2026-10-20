@@ -1,0 +1,36 @@
+# NVT: constant number of atoms, volume and temperature (Nose-Hoover thermostat).
+# Use it to thermalize a system at fixed cell, and for the thermostatted
+# regions of a larger setup.
+# Usage: sbatch job.sh nvt.in          Needs: Fe_bcc.data
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  nsteps    equal  20000          # 20 ps with 1 fs
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_bcc.data
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- output ----------
+thermo          100
+thermo_style    custom step time temp pe etotal press
+dump            traj all custom 1000 nvt.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+# ---------- run ----------
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H, or at high T
+velocity        all create ${T} 12345 dist gaussian mom yes rot yes
+# temp Tstart Tstop Tdamp: Tdamp = 100 timesteps (0.1 ps), the usual choice.
+# Tstart != Tstop gives a linear ramp over the run (heating, quench).
+fix             thermostat all nvt temp ${T} ${T} $(100.0*dt)
+run             ${nsteps}
+
+write_restart   nvt.restart

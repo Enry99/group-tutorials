@@ -98,6 +98,10 @@ z = 0, `layer_top` starts at 38.37 Å, above `thermo_top` (36.34 Å).
   e.g. the film and substrate written by `zsl_interface.py` (02).
   `--flip-top` turns the top upside down, so that the same termination
   faces the interface when top and bottom terminations differ.
+- **No top slab.** `--no-top` writes only the bottom slab and the middle
+  part: molecules on a surface, e.g. for reactions at high temperature
+  (`lammps/07_reactive`). The groups are those of the bottom slab and
+  `molecules`.
 - **Film instead of molecules.** `--middle` takes any structure with the
   same lateral cell, e.g. an amorphous film from a melt-quench (03).
 - **Type order.** With a MLIP give the full element list of the model in

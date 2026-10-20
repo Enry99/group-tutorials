@@ -1,0 +1,99 @@
+# Scratch (single-asperity sliding) at constant normal load: the outer layer
+# of the tip is a rigid body pushed down by the load, the layer below it is
+# dragged along x. Stages: thermalization, load ramp, hold, sliding.
+# Usage: sbatch job.sh 02_scratch.in
+# Needs: Fe_tip_on_Fe.data and Fe_tip_on_Fe.groups.lmp (structures/tools/interface.py)
+#
+# Groups (interface.py), top part:
+#   layer_top   rigid body (fix rigid/nve) + normal force: the load
+#   slide_top   NVE during the load; then vx imposed, y and z free
+#   thermo_top  thermostat
+#   surf_top    the apex, NVE
+# Bottom: layer_bot fixed, thermo_bot thermostat, surf_bot NVE.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  P         equal  2.0            # GPa, nominal pressure on the flat face of the tip
+variable  area      equal  452.4          # A^2, flat-face area (pi R^2, printed by tip.py)
+variable  t_therm   equal  10             # ps at zero load
+variable  t_ramp    equal  50             # ps, load 0 -> P
+variable  t_hold    equal  20             # ps at P
+variable  v         equal  10.0           # m/s sliding velocity
+variable  t_acc     equal  10             # ps, linear acceleration 0 -> v
+variable  t_slide   equal  500            # ps at v
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_tip_on_Fe.data
+include         Fe_tip_on_Fe.groups.lmp
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- load ----------
+variable        ntop equal count(layer_top)
+variable        f1 equal -${P}*1.0e9*${area}*1.0e-20/${ntop}/1.602176634e-9
+print           "load: ${P} GPa on ${area} A^2 = $(-v_f1*v_ntop:%.3f) eV/A in total, ${f1} eV/A per atom"
+
+# ---------- integration ----------
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+compute         temp_ttop thermo_top temp/com
+compute         temp_int  intercalate temp/com
+
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
+fix             nvt_bot   thermo_bot  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_top   thermo_top  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_top   temp temp_ttop
+fix             nve_int   intercalate nve
+fix             nve_slide slide_top   nve
+variable        fz equal 0.0
+fix             load      layer_top   addforce 0.0 0.0 v_fz
+fix             rigid_top layer_top   rigid/nve single               # one rigid body; it sums the load of its atoms
+
+# ---------- output ----------
+# fcm(slide_top,x): x force of the system on the dragged layer (friction),
+# xcm(layer_top,z): height of the tip
+variable        ztip equal xcm(layer_top,z)
+variable        xtip equal xcm(slide_top,x)
+variable        fxtip equal fcm(slide_top,x)
+thermo          200
+thermo_style    custom step time pe c_temp_int c_temp_tbot c_temp_ttop v_ztip v_xtip v_fxtip v_fz
+thermo_modify   flush yes
+dump            traj all custom 2000 02_scratch.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+restart         100000 02_scratch.*.restart
+
+# ---------- 1. thermalization ----------
+velocity        mobile create ${T} 6047 dist gaussian mom yes rot yes
+velocity        layer_top set 0.0 0.0 0.0
+velocity        layer_bot set 0.0 0.0 0.0
+run             $(round(v_t_therm/dt))
+
+# ---------- 2. load ramp, 3. hold ----------
+variable        s0 equal $(step)
+variable        nramp equal round(v_t_ramp/dt)
+variable        fz equal ${f1}*(step-${s0})/${nramp}
+run             ${nramp}
+variable        fz equal ${f1}
+run             $(round(v_t_hold/dt))
+write_restart   scratch_loaded.restart
+
+# ---------- 4. sliding ----------
+# slide_top: vx from the variable, y and z integrated (NULL NULL); its nve
+# is removed first, so the group has only one integrator
+unfix           nve_slide
+variable        vA equal ${v}*0.01                       # A/ps
+variable        s1 equal $(step)
+variable        nacc equal round(v_t_acc/dt)
+variable        vx equal v_vA*ternary(step-${s1}<${nacc},(step-${s1})/${nacc},1.0)
+fix             slide     slide_top   move variable NULL NULL NULL v_vx NULL NULL
+run             $(v_nacc+round(v_t_slide/dt))
+write_restart   scratch_end.restart

@@ -1,0 +1,37 @@
+# NVE: constant number of atoms, volume and energy (no thermostat).
+# Use it to check the potential and the timestep (energy conservation) and
+# for the free (NVE) regions of a larger setup.
+# Usage: sbatch job.sh nve.in          Needs: Fe_bcc.data
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+variable  T         equal  600            # K, initial velocities (see below)
+variable  nsteps    equal  20000          # 20 ps with 1 fs
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_bcc.data
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- output ----------
+thermo          100
+thermo_style    custom step time temp pe ke etotal press
+dump            traj all custom 1000 nve.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+# ---------- run ----------
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H, or at high T
+# Gaussian velocities at T, zero total momentum and angular momentum.
+# From a perfect crystal half of the kinetic energy goes into potential
+# energy: the temperature settles at about T/2.
+velocity        all create ${T} 12345 dist gaussian mom yes rot yes
+fix             integrate all nve
+run             ${nsteps}
+
+write_restart   nve.restart

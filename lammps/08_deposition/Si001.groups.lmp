@@ -1,0 +1,7 @@
+# groups for Si001.data, written by interface.py
+group layer_bot   id <> 1 32
+group thermo_bot  id <> 33 80
+group surf_bot    id <> 81 128
+group sub_bot     union layer_bot thermo_bot surf_bot
+group intercalate union surf_bot
+group mobile      union thermo_bot intercalate

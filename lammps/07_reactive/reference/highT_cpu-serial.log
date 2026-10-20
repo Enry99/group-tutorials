@@ -1,0 +1,446 @@
+LAMMPS (22 Jul 2025 - Update 4)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# Molecules on a surface at high temperature: reactions (oxidation,
+# dissociation, hydrolysis) followed by counting the molecules in the run.
+# Stages: heat T0 -> Th, hold Th, cool Th -> T0, (optional) minimize.
+# Usage: sbatch job.sh highT.in
+# Needs: Fe_water.data, Fe_water.groups.lmp (structures/tools/interface.py --no-top)
+#
+# Groups: layer_bot fixed; thermo_bot thermostat; surf_bot NVE (the
+# reacting surface); molecules thermostat (the heat of reaction goes out
+# through the molecules and thermo_bot). A reflecting wall at the top of the
+# box keeps the molecules in.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe O H"       # element of each atom type, in the order of the data file
+variable  tO        equal  2              # atom type of O ...
+variable  tH        equal  3              # ... and of H (for the molecule counts)
+variable  T0        equal  300            # K
+variable  Th        equal  800            # K
+variable  t_heat    equal  1000             # ps
+variable  t_hold    equal  2000            # ps
+variable  t_cool    equal  1000             # ps
+variable  do_min    equal  1              # 1: minimize at the end (structure for DFT, analysis)
+
+# ---------- system ----------
+units           real                      # local check: ReaxFF needs real units (fs)
+atom_style      charge
+boundary        p p f                     # z not periodic: the wall closes the box at the top
+read_data       Fe_water_q.data
+Reading data file ...
+  orthogonal box = (0 0 0) to (19.85623 21.060713 40.733427)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  1025 atoms
+  read_data CPU = 0.003 seconds
+include         Fe_water.groups.lmp
+# groups for Fe_water.data, written by interface.py
+group layer_bot   id <> 1 72
+72 atoms in group layer_bot
+group thermo_bot  id <> 73 288
+216 atoms in group thermo_bot
+group surf_bot    id <> 289 432
+144 atoms in group surf_bot
+group molecules   id <> 433 1025
+593 atoms in group molecules
+group sub_bot     union layer_bot thermo_bot surf_bot
+432 atoms in group sub_bot
+group intercalate union surf_bot molecules
+737 atoms in group intercalate
+group mobile      union thermo_bot intercalate
+953 atoms in group mobile
+
+# ---------- potential ----------
+pair_style      reaxff NULL
+pair_coeff      * * ffield.reax.Fe_O_C_H ${elements}
+pair_coeff      * * ffield.reax.Fe_O_C_H Fe O H
+Reading potential file ffield.reax.Fe_O_C_H with DATE: 2011-02-18
+fix             qeq all qeq/reaxff 1 0.0 10.0 1.0e-6 reaxff
+
+# ---------- molecule counts ----------
+# coordination of each O by H (cutoff 1.2 A) and of each H by H (0.9 A):
+# water = O with 2 H; OH = O with 1 H; H2 = 2 H with 1 H neighbour each.
+# Adjust the cutoffs to the first minimum of the RDF of your system.
+group           atom_O type ${tO}
+group           atom_O type 2
+211 atoms in group atom_O
+group           atom_H type ${tH}
+group           atom_H type 3
+382 atoms in group atom_H
+compute         cn_OH atom_O coord/atom cutoff 1.2 group atom_H
+compute         cn_HH atom_H coord/atom cutoff 0.9 group atom_H
+variable        is_h2o atom "type==v_tO && c_cn_OH==2"
+variable        is_oh  atom "type==v_tO && c_cn_OH==1"
+variable        is_h2  atom "type==v_tH && c_cn_HH==1"
+compute         n_h2o all reduce sum v_is_h2o
+compute         n_oh  all reduce sum v_is_oh
+compute         n_hh  all reduce sum v_is_h2
+variable        n_h2  equal c_n_hh/2
+
+# ---------- integration ----------
+timestep        0.25                    # ps = 0.5 fs (H, high T)
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+compute         temp_mol  molecules temp/com
+compute         temp_surf surf_bot temp/com
+
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
+fix             nve_surf  surf_bot    nve
+fix             wall      all wall/reflect zhi EDGE
+fix             nvt_bot   thermo_bot  nvt temp ${T0} ${Th} ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 300 ${Th} ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 300 800 ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 300 800 25
+fix_modify      nvt_bot   temp temp_tbot
+WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
+fix             nvt_mol   molecules   nvt temp ${T0} ${Th} ${tdamp}
+fix             nvt_mol   molecules   nvt temp 300 ${Th} ${tdamp}
+fix             nvt_mol   molecules   nvt temp 300 800 ${tdamp}
+fix             nvt_mol   molecules   nvt temp 300 800 25
+fix_modify      nvt_mol   temp temp_mol
+WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
+
+# ---------- output ----------
+thermo          200
+thermo_style    custom step time pe c_temp_mol c_temp_surf c_temp_tbot c_n_h2o c_n_oh v_n_h2
+thermo_modify   flush yes
+dump            traj all custom 2000 highT.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+dump_modify     traj element Fe O H sort id format float %15.12g
+restart         100000 highT.*.restart
+
+# ---------- 1. heat ----------
+velocity        mobile create ${T0} 5191 dist gaussian mom yes rot no
+velocity        mobile create 300 5191 dist gaussian mom yes rot no
+velocity        layer_bot set 0.0 0.0 0.0
+run             $(round(v_t_heat/dt))
+run             4000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- pair reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ number =  {4--5},
+ pages =   {245--259}
+}
+
+- fix qeq/reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ pages =   {245--259}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 4 4 7
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair reaxff, perpetual
+      attributes: half, newton off, ghost
+      pair build: half/bin/ghost/newtoff
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) compute coord/atom, occasional
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (3) compute coord/atom, occasional
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (4) fix qeq/reaxff, perpetual, copy from (1)
+      attributes: half, newton off
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 89.49 | 89.49 | 89.49 Mbytes
+   Step          Time          PotEng       c_temp_mol    c_temp_surf    c_temp_tbot      c_n_h2o         c_n_oh         v_n_h2    
+         0   0             -89341.139      298.77823      301.02481      300.10927      191            0              0            
+       200   50            -91432.121      712.13055      100.46476      127.65557      191            0              0            
+       400   100           -91969.222      421.55426      180.68177      263.4568       191            0              0            
+       600   150           -92156.994      340.04848      205.44706      338.58613      191            0              0            
+       800   200           -92159.265      407.08452      205.96731      355.25912      191            0              0            
+      1000   250           -92165.957      449.6478       273.7536       347.34114      191            0              0            
+      1200   300           -92169.77       426.6802       292.18094      423.44414      191            0              0            
+      1400   350           -92025.04       471.59815      317.03973      419.88081      191            0              0            
+      1600   400           -91980.173      518.97795      392.3831       466.76809      191            0              0            
+      1800   450           -91925.395      497.35612      372.38537      543.75486      191            0              0            
+      2000   500           -91833.298      578.28893      471.98461      518.51891      191            0              0            
+      2200   550           -91811.78       559.00944      510.60101      622.86922      191            0              0            
+      2400   600           -91657          600.74272      542.26604      591.85255      191            0              0            
+      2600   650           -91561.723      661.18683      521.97858      598.90778      191            0              0            
+      2800   700           -91505.311      614.53423      581.83179      661.18196      191            0              0            
+      3000   750           -91430.737      681.03406      590.64594      674.97162      191            0              0            
+      3200   800           -91375.533      703.28023      605.66058      742.89738      191            0              0            
+      3400   850           -91361.324      748.8047       678.9457       682.0639       191            0              0            
+      3600   900           -91268.946      721.83546      628.29626      750.60706      191            0              0            
+      3800   950           -91203.148      807.9571       646.99046      795.09461      191            0              0            
+      4000   1000          -91139.579      761.15369      685.12683      809.44824      191            0              0            
+Loop time of 259.097 on 1 procs for 4000 steps with 1025 atoms
+
+Performance: 0.333 ns/day, 71.971 hours/ns, 15.438 timesteps/s, 15.824 katom-step/s
+99.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 210.08     | 210.08     | 210.08     |   0.0 | 81.08
+Neigh   | 1.7739     | 1.7739     | 1.7739     |   0.0 |  0.68
+Comm    | 0.1159     | 0.1159     | 0.1159     |   0.0 |  0.04
+Output  | 0.41383    | 0.41383    | 0.41383    |   0.0 |  0.16
+Modify  | 46.665     | 46.665     | 46.665     |   0.0 | 18.01
+Other   |            | 0.04472    |            |       |  0.02
+
+Nlocal:           1025 ave        1025 max        1025 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3914 ave        3914 max        3914 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         330449 ave      330449 max      330449 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       472428 ave      472428 max      472428 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 472428
+Ave neighs/atom = 460.90537
+Neighbor list builds = 71
+Dangerous builds = 0
+
+# ---------- 2. hold, 3. cool ----------
+# a fix redefined with the same ID replaces the old one: fix_modify again
+fix             nvt_bot   thermo_bot  nvt temp ${Th} ${Th} ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 800 ${Th} ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 800 800 ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 800 800 25
+fix_modify      nvt_bot   temp temp_tbot
+WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
+fix             nvt_mol   molecules   nvt temp ${Th} ${Th} ${tdamp}
+fix             nvt_mol   molecules   nvt temp 800 ${Th} ${tdamp}
+fix             nvt_mol   molecules   nvt temp 800 800 ${tdamp}
+fix             nvt_mol   molecules   nvt temp 800 800 25
+fix_modify      nvt_mol   temp temp_mol
+WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
+run             $(round(v_t_hold/dt))
+run             8000
+Per MPI rank memory allocation (min/avg/max) = 94.64 | 94.64 | 94.64 Mbytes
+   Step          Time          PotEng       c_temp_mol    c_temp_surf    c_temp_tbot      c_n_h2o         c_n_oh         v_n_h2    
+      4000   1000          -91139.579      761.15369      685.12683      809.44824      191            0              0            
+      4200   1050          -91034.928      798.19647      669.10407      875.9251       191            0              0            
+      4400   1100          -91070.508      780.36179      718.77279      778.43857      191            0              0            
+      4600   1150          -91065.588      768.64517      710.13761      753.90301      191            0              0            
+      4800   1200          -91040.345      818.37401      749.17689      762.02433      191            0              0            
+      5000   1250          -91072.996      807.59564      839.98116      808.42759      191            0              0            
+      5200   1300          -91046.777      740.85605      808.7327       808.46489      191            0              0            
+      5400   1350          -91059.963      829.49604      795.1658       848.14128      191            0              0            
+      5600   1400          -90966.964      762.65234      755.78913      772.27462      191            0              0            
+      5800   1450          -90961.081      833.08505      726.57278      797.86841      191            0              0            
+      6000   1500          -90981.2        764.99191      799.6663       775.10032      191            0              0            
+      6200   1550          -90914          838.8877       730.39666      680.68666      191            0              0            
+      6400   1600          -90966.65       786.78386      831.94486      763.37491      191            0              0            
+      6600   1650          -90857.443      800.37308      788.84893      809.79163      191            0              0            
+      6800   1700          -90834.004      815.11671      817.40951      777.73735      191            0              0            
+      7000   1750          -90881.225      792.34196      900.64864      847.17707      191            0              0            
+      7200   1800          -90928.096      787.00691      824.9895       822.81537      191            0              0            
+      7400   1850          -90997.732      778.80285      867.10716      818.57801      191            0              0            
+      7600   1900          -90916.736      820.52037      864.98508      884.31379      191            0              0            
+      7800   1950          -90877.841      776.62105      742.16371      807.86495      191            0              0            
+      8000   2000          -90893.399      808.21625      801.55654      739.78328      191            0              0            
+      8200   2050          -90887.22       774.39397      748.55442      755.7668       191            0              0            
+      8400   2100          -90901.346      813.30192      757.2766       838.68942      191            0              0            
+      8600   2150          -90849.486      799.45422      765.98934      765.59955      191            0              0            
+      8800   2200          -90900.608      755.17225      794.14836      740.6801       191            0              0            
+      9000   2250          -90847.906      822.40069      732.67855      691.22601      191            0              0            
+      9200   2300          -90917.002      782.82936      786.83686      829.51502      191            0              0            
+      9400   2350          -90820.67       803.30509      805.29412      775.65546      191            0              0            
+      9600   2400          -90857.415      805.32801      785.7143       876.72134      191            0              0            
+      9800   2450          -90860.543      806.07621      719.31454      788.4791       191            0              0            
+     10000   2500          -90932.053      819.02778      768.93488      744.35654      191            0              0            
+     10200   2550          -90839.834      832.53772      778.184        778.3648       191            0              0            
+     10400   2600          -90883.366      786.98127      710.14398      873.0904       191            0              0            
+     10600   2650          -90905.137      800.82142      720.43238      805.75187      191            0              0            
+     10800   2700          -90912.91       798.1371       824.12919      784.16595      191            0              0            
+     11000   2750          -90904.964      807.84288      636.14794      753.23741      191            0              0            
+     11200   2800          -90866.112      818.55342      811.51288      852.51447      191            0              0            
+     11400   2850          -90878.234      782.25405      710.80422      777.20321      191            0              0            
+     11600   2900          -90915.451      823.29011      763.15802      765.38149      191            0              0            
+     11800   2950          -90869.579      792.3034       691.66796      863.34563      191            0              0            
+     12000   3000          -90908.58       812.0682       762.364        885.72762      191            0              0            
+Loop time of 436.858 on 1 procs for 8000 steps with 1025 atoms
+
+Performance: 0.396 ns/day, 60.675 hours/ns, 18.313 timesteps/s, 18.770 katom-step/s
+98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 356.37     | 356.37     | 356.37     |   0.0 | 81.58
+Neigh   | 3.4021     | 3.4021     | 3.4021     |   0.0 |  0.78
+Comm    | 0.22118    | 0.22118    | 0.22118    |   0.0 |  0.05
+Output  | 0.64398    | 0.64398    | 0.64398    |   0.0 |  0.15
+Modify  | 76.132     | 76.132     | 76.132     |   0.0 | 17.43
+Other   |            | 0.08641    |            |       |  0.02
+
+Nlocal:           1025 ave        1025 max        1025 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3872 ave        3872 max        3872 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         282267 ave      282267 max      282267 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       404759 ave      404759 max      404759 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 404759
+Ave neighs/atom = 394.88683
+Neighbor list builds = 171
+Dangerous builds = 0
+write_restart   hold.restart
+System init for write_restart ...
+
+fix             nvt_bot   thermo_bot  nvt temp ${Th} ${T0} ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 800 ${T0} ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 800 300 ${tdamp}
+fix             nvt_bot   thermo_bot  nvt temp 800 300 25
+fix_modify      nvt_bot   temp temp_tbot
+WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
+fix             nvt_mol   molecules   nvt temp ${Th} ${T0} ${tdamp}
+fix             nvt_mol   molecules   nvt temp 800 ${T0} ${tdamp}
+fix             nvt_mol   molecules   nvt temp 800 300 ${tdamp}
+fix             nvt_mol   molecules   nvt temp 800 300 25
+fix_modify      nvt_mol   temp temp_mol
+WARNING: Temperature for fix modify is not for group all (src/fix_nh.cpp:1402)
+run             $(round(v_t_cool/dt))
+run             4000
+Per MPI rank memory allocation (min/avg/max) = 93.98 | 93.98 | 93.98 Mbytes
+   Step          Time          PotEng       c_temp_mol    c_temp_surf    c_temp_tbot      c_n_h2o         c_n_oh         v_n_h2    
+     12000   3000          -90908.58       812.0682       762.364        885.72762      191            0              0            
+     12200   3050          -90887.843      760.48444      721.02384      757.77458      191            0              0            
+     12400   3100          -90966.969      726.01232      671.931        730.55881      191            0              0            
+     12600   3150          -91036.66       746.1482       715.95318      702.29264      191            0              0            
+     12800   3200          -91084.733      702.83805      650.55367      678.92881      191            0              0            
+     13000   3250          -91190.048      658.25704      782.11857      709.38965      191            0              0            
+     13200   3300          -91144.613      637.0609       628.41014      706.56499      191            0              0            
+     13400   3350          -91176.716      643.40781      583.31754      656.27529      191            0              0            
+     13600   3400          -91264.488      601.36049      641.88785      625.70788      191            0              0            
+     13800   3450          -91299.467      567.3446       614.64967      551.3778       191            0              0            
+     14000   3500          -91367.42       570.64919      606.66056      546.9179       191            0              0            
+     14200   3550          -91449.5        541.8872       616.94828      536.82129      191            0              0            
+     14400   3600          -91482.931      505.68099      592.1809       491.76759      191            0              0            
+     14600   3650          -91604.741      498.27205      573.53037      436.04553      191            0              0            
+     14800   3700          -91630.946      450.51988      580.14361      456.34521      191            0              0            
+     15000   3750          -91710.774      440.6177       522.49456      448.60622      191            0              0            
+     15200   3800          -91770.031      397.29255      527.77449      395.49448      191            0              0            
+     15400   3850          -91848.488      390.80894      468.81339      389.50036      191            0              0            
+     15600   3900          -91912.14       354.01372      440.74936      382.36582      191            0              0            
+     15800   3950          -92045.88       351.73235      443.5736       325.57746      191            0              0            
+     16000   4000          -92135.421      319.1355       425.26692      328.66085      191            0              0            
+Loop time of 209.884 on 1 procs for 4000 steps with 1025 atoms
+
+Performance: 0.412 ns/day, 58.301 hours/ns, 19.058 timesteps/s, 19.535 katom-step/s
+99.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 171.84     | 171.84     | 171.84     |   0.0 | 81.87
+Neigh   | 1.2239     | 1.2239     | 1.2239     |   0.0 |  0.58
+Comm    | 0.095651   | 0.095651   | 0.095651   |   0.0 |  0.05
+Output  | 0.31909    | 0.31909    | 0.31909    |   0.0 |  0.15
+Modify  | 36.361     | 36.361     | 36.361     |   0.0 | 17.32
+Other   |            | 0.04187    |            |       |  0.02
+
+Nlocal:           1025 ave        1025 max        1025 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3880 ave        3880 max        3880 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         289303 ave      289303 max      289303 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       418034 ave      418034 max      418034 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 418034
+Ave neighs/atom = 407.83805
+Neighbor list builds = 64
+Dangerous builds = 0
+write_restart   highT.restart
+System init for write_restart ...
+
+# ---------- 4. minimize ----------
+if "${do_min} == 1" then   "unfix nvt_bot" "unfix nvt_mol" "unfix nve_surf"   "minimize 0.0 1.0e-3 10000 100000"   "write_data highT_min.data nocoeff"
+unfix nvt_bot
+unfix nvt_mol
+unfix nve_surf
+minimize 0.0 1.0e-3 10000 100000
+Per MPI rank memory allocation (min/avg/max) = 95.21 | 95.21 | 95.21 Mbytes
+   Step          Time          PotEng       c_temp_mol    c_temp_surf    c_temp_tbot      c_n_h2o         c_n_oh         v_n_h2    
+     16000   4000          -92135.421      319.1355       425.26692      328.66085      191            0              0            
+     16200   4050          -93212.73       319.1355       425.26692      328.66085      191            0              0            
+     16400   4100          -93239.673      319.1355       425.26692      328.66085      191            0              0            
+     16600   4150          -93291.016      319.1355       425.26692      328.66085      191            0              0            
+     16800   4200          -93315.68       319.1355       425.26692      328.66085      191            0              0            
+     17000   4250          -93328.138      319.1355       425.26692      328.66085      191            0              0            
+     17200   4300          -93335.983      319.1355       425.26692      328.66085      191            0              0            
+     17400   4350          -93346.59       319.1355       425.26692      328.66085      191            0              0            
+     17600   4400          -93357.669      319.1355       425.26692      328.66085      191            0              0            
+     17800   4450          -93364.266      319.1355       425.26692      328.66085      191            0              0            
+     18000   4500          -93373.643      319.1355       425.26692      328.66085      191            0              0            
+     18200   4550          -93386.626      319.1355       425.26692      328.66085      191            0              0            
+     18240   4560          -93388.639      319.1355       425.26692      328.66085      191            0              0            
+Loop time of 671.505 on 1 procs for 2240 steps with 1025 atoms
+
+99.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = linesearch alpha is zero
+  Energy initial, next-to-last, final = 
+     -92135.4210905569  -93388.6396308236  -93388.6394953926
+  Force two-norm initial, final = 776.85639 18.31211
+  Force max component initial, final = 71.771198 8.8027364
+  Final line search alpha, max atom move = 1.0074089e-08 8.8679546e-08
+  Iterations, force evaluations = 2240 10759
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 489.1      | 489.1      | 489.1      |   0.0 | 72.84
+Neigh   | 0.10017    | 0.10017    | 0.10017    |   0.0 |  0.01
+Comm    | 0.31312    | 0.31312    | 0.31312    |   0.0 |  0.05
+Output  | 0.070444   | 0.070444   | 0.070444   |   0.0 |  0.01
+Modify  | 181.6      | 181.6      | 181.6      |   0.0 | 27.04
+Other   |            | 0.3255     |            |       |  0.05
+
+Nlocal:           1025 ave        1025 max        1025 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3916 ave        3916 max        3916 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         291399 ave      291399 max      291399 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       420582 ave      420582 max      420582 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 420582
+Ave neighs/atom = 410.3239
+Neighbor list builds = 5
+Dangerous builds = 0
+write_data highT_min.data nocoeff
+System init for write_data ...
+Total wall time: 0:26:17

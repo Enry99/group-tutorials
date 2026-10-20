@@ -1,0 +1,78 @@
+# Nanoindentation at constant speed: the tip is driven down into the slab,
+# held, and pulled out (displacement control). The force on the driven
+# layer vs its displacement gives the load-displacement curve.
+# Usage: sbatch job.sh 01_indent.in
+# Needs: Fe_tip_on_Fe.data and Fe_tip_on_Fe.groups.lmp (structures/tools/interface.py)
+#
+# Groups (interface.py): layer_bot fixed; thermo_bot/top thermostatted;
+# surf_bot, surf_top (apex) and slide_top NVE; layer_top driven by fix move
+# (it moves rigidly, no other integrator on it).
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  v         equal  10.0           # m/s indentation (and retraction) speed
+variable  t_therm   equal  20             # ps, thermalization with the tip held in place
+variable  depth     equal  8.0            # A of travel down (from the starting gap)
+variable  t_hold    equal  20             # ps at the maximum depth
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_tip_on_Fe.data
+include         Fe_tip_on_Fe.groups.lmp
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- integration ----------
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+compute         temp_ttop thermo_top temp/com
+compute         temp_int  intercalate temp/com
+
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
+fix             nvt_bot   thermo_bot  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_top   thermo_top  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_top   temp temp_ttop
+group           free      union intercalate slide_top
+fix             nve_free  free        nve
+
+# ---------- output ----------
+# fcm(layer_top,z): z force of the system on the driven layer (eV/A, total
+# over the group; positive = the slab pushes the tip up)
+variable        ztip equal xcm(layer_top,z)
+variable        fztip equal fcm(layer_top,z)
+variable        fxtip equal fcm(layer_top,x)
+thermo          200
+thermo_style    custom step time pe c_temp_int c_temp_tbot c_temp_ttop v_ztip v_fztip v_fxtip
+thermo_modify   flush yes
+dump            traj all custom 2000 01_indent.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+# ---------- 1. thermalization, tip held ----------
+velocity        mobile create ${T} 2755 dist gaussian mom yes rot yes
+velocity        layer_top set 0.0 0.0 0.0
+velocity        layer_bot set 0.0 0.0 0.0
+fix             drive layer_top move linear 0.0 0.0 0.0 units box
+run             $(round(v_t_therm/dt))
+
+# ---------- 2. indentation ----------
+variable        vA equal ${v}*0.01                       # A/ps
+fix             drive layer_top move linear 0.0 0.0 -${vA} units box
+run             $(round(v_depth/v_vA/dt))
+write_restart   indent_max.restart
+
+# ---------- 3. hold ----------
+fix             drive layer_top move linear 0.0 0.0 0.0 units box
+run             $(round(v_t_hold/dt))
+
+# ---------- 4. retraction ----------
+fix             drive layer_top move linear 0.0 0.0 ${vA} units box
+run             $(round(v_depth/v_vA/dt))
+write_restart   indent_end.restart

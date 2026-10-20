@@ -6,6 +6,8 @@ force per atom for a normal load.
 Usage:
     python interface.py Fe110_ortho.extxyz --flip-top --middle lubricant.extxyz \\
         --load 1.0 --specorder Fe C H O -o Fe_lub_Fe.data
+    python interface.py Fe110.extxyz --no-top --middle water.extxyz --specorder Fe O H \\
+        -o Fe_water.data            # molecules on a surface (no top slab)
     python interface.py SiN_slab.extxyz --top C_tip.extxyz --isolated-top \\
         --fixed 5 --thermo 10 --top-fixed 2 --top-slide 2 --top-thermo 6 \\
         --load 5.0 --load-area 2124 --specorder Si C O H N -o tip_on_SiN.data
@@ -24,7 +26,8 @@ written bottom, middle, top, each sorted along z, so every group is one
 contiguous id range ("id <> first last").
 
 What it does (based on create_interf*.py by E. Pedretti):
-  1. reads the slabs; the top is a copy of the bottom if not given;
+  1. reads the slabs; the top is a copy of the bottom if not given
+     (--no-top: none, e.g. molecules on a surface);
      --flip-top turns it upside down (180 deg about x), so that the same
      surface faces the interface;
   2. checks that the lateral cells match (--max-strain, default 0.5 %) and
@@ -77,6 +80,8 @@ def main():
     parser.add_argument("bottom")
     parser.add_argument("--top", help="top slab or tip (default: copy of the bottom)")
     parser.add_argument("--flip-top", action="store_true")
+    parser.add_argument("--no-top", action="store_true",
+                        help="bottom slab and middle only (e.g. molecules on a surface)")
     parser.add_argument("--isolated-top", action="store_true",
                         help="top is not periodic in xy (tip): no cell check, centred")
     parser.add_argument("--middle", help="molecules or film between the slabs")
@@ -98,15 +103,17 @@ def main():
     top_thermo = args.thermo if args.top_thermo is None else args.top_thermo
 
     bottom = sort_z(read(args.bottom))
-    top = read(args.top) if args.top else bottom.copy()
-    if args.flip_top:
+    top = None if args.no_top else (read(args.top) if args.top else bottom.copy())
+    if args.flip_top and top is not None:
         top.rotate(180, "x", center="COM")
     middle = sort_z(read(args.middle)) if args.middle else None
 
     cell = bottom.cell[:].copy()
     if np.abs(bottom.cell.angles()[:2] - 90).max() > 1e-4:
         sys.exit("bottom: c must be perpendicular to the surface (slab.py does it)")
-    if args.isolated_top:
+    if top is None:
+        pass
+    elif args.isolated_top:
         shift = bottom.positions[:, :2].mean(0) - top.positions[:, :2].mean(0)
         top.positions[:, :2] += shift
     else:
@@ -119,7 +126,8 @@ def main():
         tcell[:2, :2] = cell[:2, :2]
         top.set_cell(tcell, scale_atoms=True)
         print(f"top strained onto the bottom cell ({strain:.3%})")
-    top = sort_z(top)
+    if top is not None:
+        top = sort_z(top)
 
     # stack along z
     bottom.positions[:, 2] -= bottom.positions[:, 2].min()
@@ -127,17 +135,19 @@ def main():
     if middle is not None:
         middle.positions[:, 2] += zmax + args.gap - middle.positions[:, 2].min()
         zmax = middle.positions[:, 2].max()
-    top.positions[:, 2] += zmax + args.gap - top.positions[:, 2].min()
-
     # zones from the outer surfaces
     zb = zones(bottom.positions[:, 2], bottom.positions[:, 2].min(),
                [args.fixed, args.thermo], from_top=False)        # 0 layer, 1 thermo, 2 surf
-    widths_top = [top_fixed] + ([args.top_slide] if args.top_slide > 0 else []) + [top_thermo]
-    zt = zones(top.positions[:, 2], top.positions[:, 2].max(), widths_top, from_top=True)
-    names_top = ["layer_top"] + (["slide_top"] if args.top_slide > 0 else []) + \
-        ["thermo_top", "surf_top"]
+    names_top = []
+    if top is not None:
+        top.positions[:, 2] += zmax + args.gap - top.positions[:, 2].min()
+        widths_top = [top_fixed] + ([args.top_slide] if args.top_slide > 0 else []) + \
+            [top_thermo]
+        zt = zones(top.positions[:, 2], top.positions[:, 2].max(), widths_top, from_top=True)
+        names_top = ["layer_top"] + (["slide_top"] if args.top_slide > 0 else []) + \
+            ["thermo_top", "surf_top"]
 
-    parts = [bottom] + ([middle] if middle is not None else []) + [top]
+    parts = [bottom] + ([middle] if middle is not None else []) + ([top] if top else [])
     atoms = parts[0].copy()
     for p in parts[1:]:
         atoms += p
@@ -163,24 +173,29 @@ def main():
     lines = [f"# groups for {os.path.basename(args.output)}, written by interface.py"]
     lines += [f"group {n:<11s} id <> {a} {b}" for n, (a, b) in groups]
     present = [n for n, _ in groups]
-    lines += ["group sub_bot     union layer_bot thermo_bot surf_bot",
-              "group sub_top     union " + " ".join(n for n in names_top if n in present)]
-    inter = ["surf_bot"] + (["molecules"] if middle is not None else []) + ["surf_top"]
+    lines += ["group sub_bot     union layer_bot thermo_bot surf_bot"]
+    if top is not None:
+        lines += ["group sub_top     union " + " ".join(n for n in names_top if n in present)]
+    inter = ["surf_bot"] + (["molecules"] if middle is not None else []) + \
+        (["surf_top"] if top is not None else [])
     lines += ["group intercalate union " + " ".join(inter),
-              "group mobile      union thermo_bot intercalate thermo_top"
-              + (" slide_top" if args.top_slide > 0 else "")]
+              "group mobile      union thermo_bot intercalate"
+              + (" thermo_top" if top is not None else "")
+              + (" slide_top" if top is not None and args.top_slide > 0 else "")]
 
     area = args.load_area or float(np.linalg.norm(np.cross(cell[0], cell[1])))
-    n_load = groups[[n for n, _ in groups].index("layer_top")][1]
-    n_load = n_load[1] - n_load[0] + 1
+    if args.load is not None and top is None:
+        sys.exit("--load needs a top slab")
     if args.load is not None:
+        n_load = groups[[n for n, _ in groups].index("layer_top")][1]
+        n_load = n_load[1] - n_load[0] + 1
         f = force_per_atom(args.load, area, n_load)
         lines += [f"variable    load_force equal {-f:.10g}   "
                   f"# eV/A per atom: {args.load} GPa on {area:.2f} A^2, {n_load} atoms"]
     with open(stem + ".groups.lmp", "w") as fh:
         fh.write("\n".join(lines) + "\n")
 
-    print(f"{len(atoms)} atoms ({nb} bottom, {nm} middle, {len(top)} top), "
+    print(f"{len(atoms)} atoms ({nb} bottom, {nm} middle, {len(top) if top else 0} top), "
           f"cell {np.round(atoms.cell.lengths(), 4)} A -> {args.output}")
     print("\n".join(lines[1:]))
     print(f"-> {stem}.groups.lmp")

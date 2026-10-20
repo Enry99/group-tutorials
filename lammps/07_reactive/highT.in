@@ -1,0 +1,99 @@
+# Molecules on a surface at high temperature: reactions (oxidation,
+# dissociation, hydrolysis) followed by counting the molecules in the run.
+# Stages: heat T0 -> Th, hold Th, cool Th -> T0, (optional) minimize.
+# Usage: sbatch job.sh highT.in
+# Needs: Fe_water.data, Fe_water.groups.lmp (structures/tools/interface.py --no-top)
+#
+# Groups: layer_bot fixed; thermo_bot thermostat; surf_bot NVE (the
+# reacting surface); molecules thermostat (the heat of reaction goes out
+# through the molecules and thermo_bot). A reflecting wall at the top of the
+# box keeps the molecules in.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe O H"       # element of each atom type, in the order of the data file
+variable  tO        equal  2              # atom type of O ...
+variable  tH        equal  3              # ... and of H (for the molecule counts)
+variable  T0        equal  300            # K
+variable  Th        equal  800            # K
+variable  t_heat    equal  50             # ps
+variable  t_hold    equal  500            # ps
+variable  t_cool    equal  50             # ps
+variable  do_min    equal  1              # 1: minimize at the end (structure for DFT, analysis)
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p f                     # z not periodic: the wall closes the box at the top
+read_data       Fe_water.data
+include         Fe_water.groups.lmp
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- molecule counts ----------
+# coordination of each O by H (cutoff 1.2 A) and of each H by H (0.9 A):
+# water = O with 2 H; OH = O with 1 H; H2 = 2 H with 1 H neighbour each.
+# Adjust the cutoffs to the first minimum of the RDF of your system.
+group           atom_O type ${tO}
+group           atom_H type ${tH}
+compute         cn_OH atom_O coord/atom cutoff 1.2 group atom_H
+compute         cn_HH atom_H coord/atom cutoff 0.9 group atom_H
+variable        is_h2o atom "type==v_tO && c_cn_OH==2"
+variable        is_oh  atom "type==v_tO && c_cn_OH==1"
+variable        is_h2  atom "type==v_tH && c_cn_HH==1"
+compute         n_h2o all reduce sum v_is_h2o
+compute         n_oh  all reduce sum v_is_oh
+compute         n_hh  all reduce sum v_is_h2
+variable        n_h2  equal c_n_hh/2
+
+# ---------- integration ----------
+timestep        0.0005                    # ps = 0.5 fs (H, high T)
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+compute         temp_mol  molecules temp/com
+compute         temp_surf surf_bot temp/com
+
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0
+fix             nve_surf  surf_bot    nve
+fix             wall      all wall/reflect zhi EDGE
+fix             nvt_bot   thermo_bot  nvt temp ${T0} ${Th} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_mol   molecules   nvt temp ${T0} ${Th} ${tdamp}
+fix_modify      nvt_mol   temp temp_mol
+
+# ---------- output ----------
+thermo          200
+thermo_style    custom step time pe c_temp_mol c_temp_surf c_temp_tbot c_n_h2o c_n_oh v_n_h2
+thermo_modify   flush yes
+dump            traj all custom 2000 highT.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+restart         100000 highT.*.restart
+
+# ---------- 1. heat ----------
+velocity        mobile create ${T0} 5191 dist gaussian mom yes rot no
+velocity        layer_bot set 0.0 0.0 0.0
+run             $(round(v_t_heat/dt))
+
+# ---------- 2. hold, 3. cool ----------
+# a fix redefined with the same ID replaces the old one: fix_modify again
+fix             nvt_bot   thermo_bot  nvt temp ${Th} ${Th} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_mol   molecules   nvt temp ${Th} ${Th} ${tdamp}
+fix_modify      nvt_mol   temp temp_mol
+run             $(round(v_t_hold/dt))
+write_restart   hold.restart
+
+fix             nvt_bot   thermo_bot  nvt temp ${Th} ${T0} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_mol   molecules   nvt temp ${Th} ${T0} ${tdamp}
+fix_modify      nvt_mol   temp temp_mol
+run             $(round(v_t_cool/dt))
+write_restart   highT.restart
+
+# ---------- 4. minimize ----------
+if "${do_min} == 1" then &
+  "unfix nvt_bot" "unfix nvt_mol" "unfix nve_surf" &
+  "minimize 0.0 1.0e-3 10000 100000" &
+  "write_data highT_min.data nocoeff"

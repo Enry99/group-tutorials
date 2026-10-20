@@ -1,0 +1,14 @@
+# run products (inputs and the small data files of the templates are tracked)
+*.lammpstrj
+*.restart
+*.log
+log.lammps
+minimized.data
+npt.data
+meltquench*.data
+anneal_slab.data
+deposition.data
+highT_min.data
+npt_averages.txt
+stress_strain.txt
+!**/reference/*

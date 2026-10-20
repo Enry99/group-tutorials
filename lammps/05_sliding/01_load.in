@@ -1,0 +1,113 @@
+# Sliding interface, part 1: thermalize under a small load, ramp the load to
+# the target pressure, equilibrate at constant load. Ends with load.restart,
+# read by 02_slide.in.
+# Usage: sbatch job.sh 01_load.in
+# Needs: Fe_water_Fe.data and Fe_water_Fe.groups.lmp (structures/tools/interface.py)
+#
+# Groups (interface.py), from the bottom:
+#   layer_bot   fixed (forces set to zero, not integrated)
+#   thermo_bot  Nose-Hoover thermostat, temperature without the COM motion
+#   surf_bot    NVE  \
+#   molecules   NVE   } intercalate
+#   surf_top    NVE  /
+#   thermo_top  Nose-Hoover thermostat, as thermo_bot
+#   layer_top   NVE + normal force (load) on each atom; moved along x in 02
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe O H"       # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  P0        equal  0.1            # GPa, small load during the thermalization
+variable  P         equal  1.0            # GPa, target load
+variable  t_therm   equal  50             # ps at P0 (in blocks of t_block)
+variable  t_block   equal  10             # ps; velocities re-drawn at the start of each block
+variable  t_ramp    equal  100            # ps, P0 -> P
+variable  t_hold    equal  100            # ps at P
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_water_Fe.data
+include         Fe_water_Fe.groups.lmp
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- load: force per atom of layer_top ----------
+# F = P A / N (eV/A), negative = pushing down. The groups file gives
+# load_force for the pressure used in interface.py; here it is recomputed
+# from the cell, so P and P0 can be changed without rerunning interface.py.
+variable        area equal lx*ly
+variable        ntop equal count(layer_top)
+variable        f0 equal -${P0}*1.0e9*${area}*1.0e-20/${ntop}/1.602176634e-9
+variable        f1 equal -${P}*1.0e9*${area}*1.0e-20/${ntop}/1.602176634e-9
+print           "load per atom: ${f0} eV/A (${P0} GPa), ${f1} eV/A (${P} GPa); ${ntop} atoms, ${area} A^2"
+
+# ---------- integration ----------
+timestep        0.0005                    # ps = 0.5 fs (H present); 1 fs without H
+variable        tdamp equal 100.0*dt
+compute         temp_tbot thermo_bot temp/com
+compute         temp_ttop thermo_top temp/com
+compute         temp_int  intercalate temp/com
+compute         temp_mol  molecules temp/com     # remove if there are no molecules
+
+fix             hold_bot  layer_bot   setforce 0.0 0.0 0.0     # with no integrator: atoms do not move
+fix             nvt_bot   thermo_bot  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_bot   temp temp_tbot
+fix             nvt_top   thermo_top  nvt temp ${T} ${T} ${tdamp}
+fix_modify      nvt_top   temp temp_ttop
+fix             nve_int   intercalate nve
+fix             nve_top   layer_top   nve
+variable        fz equal ${f0}
+variable        ez atom -v_fz*z                            # energy of the force, for the minimizer
+fix             load      layer_top   addforce 0.0 0.0 v_fz energy v_ez
+
+# ---------- output ----------
+# f_load[1..3]: total force on layer_top from the rest of the system (before
+# the added force): f_load[1] is the friction force along x, f_load[3] the
+# normal reaction. f_hold_bot[1..3]: the same on layer_bot.
+variable        ztop equal xcm(layer_top,z)
+variable        zbot equal xcm(layer_bot,z)
+variable        gap  equal v_ztop-v_zbot
+thermo          200
+thermo_style    custom step time pe c_temp_int c_temp_mol c_temp_tbot c_temp_ttop &
+                f_load[1] f_load[3] f_hold_bot[1] f_hold_bot[3] v_gap v_fz
+thermo_modify   flush yes
+dump            traj all custom 2000 01_load.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+restart         100000 01_load.*.restart
+
+# ---------- 0. minimization at P0 ----------
+# removes the overlaps of the stacked structure. fix_modify energy yes adds
+# the work of the load to the minimized energy (otherwise the minimizer
+# does not see the force); switched off again for the MD.
+fix_modify      load energy yes
+minimize        0.0 1.0e-2 1000 10000
+fix_modify      load energy no
+
+# ---------- 1. thermalization at P0 ----------
+# Velocities are re-drawn at every block: the heat released when the
+# surfaces settle on the molecules is removed faster than by the thermostats
+# alone (only thermo_bot/top are thermostatted).
+velocity        layer_bot set 0.0 0.0 0.0
+variable        nblock equal round(v_t_therm/v_t_block)
+variable        iblock loop ${nblock}
+label           therm
+  velocity      mobile create ${T} $(12345+v_iblock) dist gaussian mom yes rot no
+  run           $(round(v_t_block/dt))
+next            iblock
+jump            SELF therm
+write_restart   1_therm.restart
+
+# ---------- 2. load ramp P0 -> P ----------
+variable        s0 equal $(step)
+variable        nramp equal round(v_t_ramp/dt)
+variable        fz equal ${f0}+(${f1}-${f0})*(step-${s0})/${nramp}
+run             ${nramp}
+
+# ---------- 3. hold at P ----------
+variable        fz equal ${f1}
+run             $(round(v_t_hold/dt))
+write_restart   load.restart

@@ -1,0 +1,50 @@
+# NPT: constant number of atoms, pressure and temperature (Nose-Hoover
+# thermostat and barostat). Use it for the equilibrium volume (density) at
+# T and P, e.g. before cutting a slab from an MD bulk or after a melt-quench.
+# Usage: sbatch job.sh npt.in          Needs: Fe_bcc.data
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  P         equal  0.0            # bar (1 GPa = 10000 bar)
+variable  nsteps    equal  20000          # 20 ps with 1 fs
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_bcc.data
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- output ----------
+thermo          100
+thermo_style    custom step time temp pe press pxx pyy pzz lx ly lz vol density
+dump            traj all custom 1000 npt.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+# ---------- run ----------
+timestep        0.001                     # ps = 1 fs; 0.5 fs with H, or at high T
+velocity        all create ${T} 12345 dist gaussian mom yes rot yes
+# Pdamp = 1000 timesteps (1 ps). Coupling of the cell:
+#   iso P P Pdamp      x, y, z scaled together (cubic crystals, liquids, amorphous)
+#   aniso P P Pdamp    x, y, z independent (non-cubic crystals)
+#   tri P P Pdamp      also the angles (triclinic cells only)
+#   x P P Pdamp y P P Pdamp   only x and y: slabs with vacuum along z
+#   z P P Pdamp        only z, lateral cell fixed (e.g. a film between slabs)
+fix             thermostat all npt temp ${T} ${T} $(100.0*dt) iso ${P} ${P} $(1000.0*dt)
+
+# averages over the second half of the run, sampled every 10 steps, written
+# at the end to npt_averages.txt (the first half is equilibration)
+variable        rho equal density
+variable        a equal lx
+variable        b equal ly
+variable        c equal lz
+fix             averages all ave/time 10 $(v_nsteps/20) ${nsteps} c_thermo_temp c_thermo_press v_rho v_a v_b v_c file npt_averages.txt
+run             ${nsteps}
+
+write_restart   npt.restart
+write_data      npt.data nocoeff

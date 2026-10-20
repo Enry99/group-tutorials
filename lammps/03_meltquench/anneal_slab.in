@@ -1,0 +1,53 @@
+# Surface of an amorphous solid: open a vacuum gap in the melt-quenched bulk,
+# anneal the new surfaces, cool down and minimize.
+# Stages (NVT): heat T0 -> Ta, hold Ta, cool Ta -> T0, minimize.
+# Usage: sbatch job.sh anneal_slab.in     Needs: meltquench.data (from meltquench.in)
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "C"            # element of each atom type, in the order of the data file
+variable  vacuum    equal  20.0           # A added along z (0: the data file is already a slab)
+variable  T0        equal  300            # K
+variable  Ta        equal  1500           # K, anneal: mobile surface, below melting
+variable  t_heat    equal  20             # ps
+variable  t_hold    equal  20             # ps
+variable  t_cool    equal  40             # ps
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       meltquench.data
+# the bulk is cut at the z boundary: two free surfaces, at the bottom and at the top
+change_box      all z final $(zlo) $(zhi+v_vacuum) units box
+displace_atoms  all move 0 0 $(v_vacuum/2) units box   # slab in the middle of the cell
+# image flags along z from the bulk run are meaningless now: without this the
+# unwrapped z (zu) of the atoms that crossed the z boundary is off by one cell
+set             group all image NULL NULL 0
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- output ----------
+thermo          1000
+thermo_style    custom step time temp pe etotal pxx pyy pzz
+dump            traj all custom 1000 anneal_slab.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+timestep        0.001
+variable        tdamp equal 100.0*dt
+velocity        all create ${T0} 7391 dist gaussian mom yes rot yes
+
+fix             thermostat all nvt temp ${T0} ${Ta} ${tdamp}
+run             $(round(v_t_heat/dt))
+fix             thermostat all nvt temp ${Ta} ${Ta} ${tdamp}
+run             $(round(v_t_hold/dt))
+fix             thermostat all nvt temp ${Ta} ${T0} ${tdamp}
+run             $(round(v_t_cool/dt))
+write_restart   anneal_slab.restart
+
+# ---------- minimize ----------
+unfix           thermostat
+minimize        0.0 1.0e-3 10000 100000
+write_data      anneal_slab.data nocoeff

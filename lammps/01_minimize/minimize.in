@@ -1,0 +1,40 @@
+# Energy minimization: atoms only (fixed cell), then atoms + cell (box/relax).
+# Usage: sbatch job.sh minimize.in
+# Needs: Fe_bcc.data (or your data file: change read_data and elements)
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_bcc.data
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- output ----------
+thermo          10
+thermo_style    custom step pe fmax fnorm press pxx pyy pzz vol
+dump            traj all custom 10 minimize.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+# ---------- 1. atoms only ----------
+# stop when the largest force component is below 1e-3 eV/A (etol = 0: not used),
+# or after 10000 iterations / 100000 force evaluations
+min_style       cg
+minimize        0.0 1.0e-3 10000 100000
+
+# ---------- 2. atoms and cell ----------
+# box/relax relaxes the cell to the target pressure (bar): iso = same
+# scaling on x, y, z; aniso = x, y, z independent; tri also the angles.
+# For a slab with vacuum use "x 0.0 y 0.0" (never z, the vacuum would collapse).
+fix             relax all box/relax iso 0.0 vmax 0.001
+minimize        0.0 1.0e-3 10000 100000
+unfix           relax
+
+print           "final cell: $(lx:%.6f) x $(ly:%.6f) x $(lz:%.6f) A, pressure $(press:%.1f) bar"
+write_data      minimized.data nocoeff        # nocoeff: no pair coefficients in the file

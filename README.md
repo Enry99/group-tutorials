@@ -11,7 +11,9 @@ Start from `leonardo/` (the cluster), then the folder of the code you need:
 - `qe/`: Quantum ESPRESSO (pw.x, neb.x), with its own `README.md`;
 - `structures/`: structure generation (slabs, interfaces, amorphous
   starting structures, sliding interfaces, tips), for any code;
-- to come: LAMMPS, MLIP training and active learning.
+- `lammps/`: LAMMPS templates (minimization, NVE/NVT/NPT, melt-quench,
+  deformation, sliding, indentation, reactions, deposition) with MLIPs;
+- to come: analysis of MD trajectories, MLIP training and active learning.
 
 ## Setup (once)
 

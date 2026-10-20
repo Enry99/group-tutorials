@@ -11,5 +11,7 @@
       reconstructions (pymatgen `ReconstructionGenerator` gave wrong diamond
       slabs), vacancies, stepped surfaces (`make_steps.py`), adsorbates
       (xsorb).
-- [ ] LAMMPS part (NEMD sliding, MLIP pair styles).
+- [x] LAMMPS templates (`lammps/`, draft), checked locally with classical
+      potentials. Still open: runs with a MLIP on Leonardo, `lmp_node.sh`
+      not tested, analysis of the trajectories (`lammps/analysis/`).
 - [ ] Possibly: band structure and DOS, AIMD, cohesive energy.

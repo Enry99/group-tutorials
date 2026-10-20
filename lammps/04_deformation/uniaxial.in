@@ -1,0 +1,56 @@
+# Uniaxial deformation at constant strain rate: stress-strain curve.
+# The cell is stretched (or compressed) along x at engineering strain rate
+# erate; y and z are kept at zero pressure by the barostat (uniaxial stress).
+# Usage: sbatch job.sh uniaxial.in     Needs: Fe_bcc.data
+# Output: stress_strain.txt (strain, then sxx syy szz in GPa, positive = tensile)
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "Fe"           # element of each atom type, in the order of the data file
+variable  T         equal  300            # K
+variable  srate     equal  1.0e9          # 1/s, engineering strain rate; negative = compression
+variable  strain    equal  0.20           # final strain (absolute value)
+variable  t_eq      equal  20             # ps, NPT equilibration at zero pressure
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+boundary        p p p
+read_data       Fe_bcc.data
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+timestep        0.001
+variable        tdamp equal 100.0*dt
+variable        pdamp equal 1000.0*dt
+velocity        all create ${T} 8541 dist gaussian mom yes rot yes
+
+# ---------- 1. equilibration at zero pressure ----------
+thermo          1000
+thermo_style    custom step time temp pe press lx ly lz
+fix             md all npt temp ${T} ${T} ${tdamp} aniso 0.0 0.0 ${pdamp}
+run             $(round(v_t_eq/dt))
+variable        L0 equal $(lx)            # reference length (evaluated now, then constant)
+print           "L0 = ${L0} A"
+
+# ---------- 2. deformation ----------
+# erate is in 1/ps in metal units: 1e9 1/s = 1e-3 1/ps
+variable        erate equal v_srate/1.0e12
+fix             md all npt temp ${T} ${T} ${tdamp} y 0.0 0.0 ${pdamp} z 0.0 0.0 ${pdamp}
+fix             stretch all deform 1 x erate ${erate} units box remap x
+
+# strain and stresses in GPa (pressure is in bar; stress = -pressure, so
+# a positive sxx is tensile)
+variable        eps equal (lx-v_L0)/v_L0
+variable        sxx equal -pxx/10000
+variable        syy equal -pyy/10000
+variable        szz equal -pzz/10000
+fix             out all print 100 "${eps} ${sxx} ${syy} ${szz}" file stress_strain.txt screen no title "# strain sxx syy szz (GPa)"
+thermo_style    custom step time temp pe press v_eps v_sxx v_syy v_szz   # press: needed by v_sxx
+dump            traj all custom 1000 uniaxial.lammpstrj id element xu yu zu
+dump_modify     traj element ${elements} sort id format float %15.12g
+
+run             $(round(abs(v_strain/v_erate)/dt))
+write_restart   uniaxial.restart

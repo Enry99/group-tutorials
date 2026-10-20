@@ -1,0 +1,12 @@
+# groups for Fe_tip_on_Fe.data, written by interface.py
+group layer_bot   id <> 1 225
+group thermo_bot  id <> 226 900
+group surf_bot    id <> 901 1800
+group surf_top    id <> 1801 1821
+group thermo_top  id <> 1822 1975
+group slide_top   id <> 1976 2024
+group layer_top   id <> 2025 2133
+group sub_bot     union layer_bot thermo_bot surf_bot
+group sub_top     union layer_top slide_top thermo_top surf_top
+group intercalate union surf_bot surf_top
+group mobile      union thermo_bot intercalate thermo_top slide_top

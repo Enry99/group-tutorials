@@ -1,0 +1,8 @@
+# groups for Fe_water.data, written by interface.py
+group layer_bot   id <> 1 72
+group thermo_bot  id <> 73 288
+group surf_bot    id <> 289 432
+group molecules   id <> 433 1025
+group sub_bot     union layer_bot thermo_bot surf_bot
+group intercalate union surf_bot molecules
+group mobile      union thermo_bot intercalate
