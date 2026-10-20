@@ -31,11 +31,15 @@ TAG=${INP%.in}_dt${DT}
 [ "$MH" != 0 ] && TAG=${TAG}_mH${MH}
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-# Group build of LAMMPS (30 Mar 2026, development version 16f8568; Kokkos CUDA + ML-IAP for MACE).
+# Group build of LAMMPS (30 Mar 2026, development version 16f8568; Kokkos CUDA + ML-IAP for MACE;
+# the directory name is not the version).
 module purge
 module load cuda/12.6 openmpi/4.1.6--gcc--12.2.0
 source /leonardo/pub/userexternal/epedrett/.venv/macecuda126/bin/activate
 LMP=/leonardo/pub/userexternal/epedrett/software/lammps-22Jul2026/build/lmp
 
-mpirun -np 1 $LMP -k on g 1 -sf kk -pk kokkos newton on neigh half -in "$INP" \
-       -var dt "$DT" -var T "$T" -var mH "$MH" -var tag "$TAG" -log "$TAG.log" >> "$TAG.out"
+# --map-by socket:PE=N: the rank gets its N cores (by default OpenMPI binds
+# one rank to one core, so all its threads would share it)
+mpirun -np 1 --map-by socket:PE=$SLURM_CPUS_PER_TASK --rank-by core \
+    $LMP -k on g 1 -sf kk -pk kokkos newton on neigh half -in "$INP" \
+    -var dt "$DT" -var T "$T" -var mH "$MH" -var tag "$TAG" -log "$TAG.log" >> "$TAG.out"

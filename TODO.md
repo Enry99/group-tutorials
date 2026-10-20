@@ -30,6 +30,13 @@
       there), and a look at the "Differences from the original scripts" in its README.
 - [ ] Test `jobscripts/lmp_node.sh` (several GPUs) with a slab template:
       `processors * * 1` and the x, y load balance only act there.
+- [ ] 200 steps on 1 GPU of `05_sliding/01_load.in`,
+      `06_indentation/02_scratch.in` and `08_deposition/deposition.in`
+      with the group build: styles without a Kokkos version (`temp/com`
+      as thermostat bias, `fix move`, `rigid/nve`, `deposit`) under
+      `-sf kk` were checked only on the CPU build. Same jobs: compare the
+      `Performance` line with the earlier binding (`--map-by` added to
+      the 1-GPU jobscripts).
 - [ ] Enrico: upload the indent + slide templates with torque removal
       (rigid tip with `torque * off off off`, constant force instead of
       constant z), to replace or extend `lammps/06_indentation`.

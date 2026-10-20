@@ -37,10 +37,9 @@ checks every script on synthetic data with known answers.
   shared environment of `../../leonardo/README.md` and `pip install` what
   is missing.
 - `structure.py`, `bonds.py`, `detached.py`, `species.py` also need
-  OVITO (tested with 3.16.1). Check with `python -c "import ovito"`; if it
-  fails, use the environment where the original OVITO scripts were run
-  (`source /leonardo/pub/userexternal/epedrett/.venv/mace/bin/activate`,
-  same check) or `pip install ovito` in your own.
+  OVITO (tested with 3.16.1), which is in the group environment `mace`:
+  `source /leonardo/pub/userexternal/epedrett/.venv/mace/bin/activate`
+  (or `pip install ovito` in your own).
 - After installing or updating: `python $T/../tests/synthetic.py` (38
   checks, under a minute, in a temporary folder; the OVITO ones are
   skipped without OVITO).

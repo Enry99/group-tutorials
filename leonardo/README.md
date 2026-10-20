@@ -57,7 +57,9 @@ production runs delete that line and set `--time` (at most 24 h on
 
 The scripts of the tutorials need Python with a few packages (ase, numpy,
 scipy, pandas, spglib, matplotlib; pymatgen for `structures/`, OVITO for
-part of `lammps/analysis/`). First try the shared environment:
+part of `lammps/analysis/`, which is in the environment
+`/leonardo/pub/userexternal/epedrett/.venv/mace`). First try the shared
+environment:
 
 ```bash
 source /leonardo/pub/userexternal/epedrett/.venv/macecuda126/bin/activate

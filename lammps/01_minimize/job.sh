@@ -37,4 +37,7 @@ LMP=/leonardo/pub/userexternal/epedrett/software/lammps-22Jul2026/build/lmp
 
 # -k on g 1: Kokkos on 1 GPU; -sf kk: Kokkos versions of the styles;
 # -pk kokkos newton on neigh half: the settings ML-IAP needs
-mpirun -np 1 $LMP -k on g 1 -sf kk -pk kokkos newton on neigh half -in "$INP" -log "$LOG" >> "$OUT"
+# --map-by socket:PE=N: the rank gets its N cores (by default OpenMPI binds
+# one rank to one core, so all its threads would share it)
+mpirun -np 1 --map-by socket:PE=$SLURM_CPUS_PER_TASK --rank-by core \
+    $LMP -k on g 1 -sf kk -pk kokkos newton on neigh half -in "$INP" -log "$LOG" >> "$OUT"

@@ -25,7 +25,7 @@ Clone the repository in your project area (`$WORK`, see
 folder, so that the clone stays clean and can be updated with `git pull`:
 
 ```bash
-git clone <group-repo-url> group-tutorials
+git clone https://github.com/Enry99/group-tutorials.git group-tutorials
 cp -r group-tutorials/qe qe_runs
 ```
 

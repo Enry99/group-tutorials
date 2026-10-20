@@ -28,7 +28,9 @@ mpirun -np 1 $LMP -k on g 1 -sf kk -pk kokkos newton on neigh half -in input.in
 - `-sf kk`: use the Kokkos version of every style that has one;
 - `-pk kokkos newton on neigh half`: the settings ML-IAP needs.
 
-One MPI rank per GPU. With the jobscripts you never type this line.
+One MPI rank per GPU. The jobscripts also give each rank its cores
+(`--map-by socket:PE=8 --rank-by core`); with them you never type this
+line.
 
 ## The jobscripts
 
