@@ -32,7 +32,7 @@ checks every script on synthetic data with known answers.
   OVITO (`pip install ovito`; tested with 3.16.1). The environment
   `/leonardo/pub/userexternal/epedrett/.venv/mace` is the one of the
   OVITO scripts these come from; check it with `python -c "import ovito"`.
-- After installing or updating: `python tests/synthetic.py` (29 checks,
+- After installing or updating: `python tests/synthetic.py` (31 checks,
   about 15 s; the OVITO ones are skipped without OVITO).
 - The dump tools read every frame of the window: for long trajectories
   use `--every`, or run them in a job rather than on the login node.
@@ -250,8 +250,12 @@ The atoms of `--track` are clustered by their bonds among themselves; the
 largest cluster at the first frame is the body (its composition is
 printed: check it) and its atoms are followed (`--all-tracked`: all
 tracked atoms). At each frame, detached = followed atoms outside the
-largest cluster, per element, and the number of fragments; the fragments
-of the last frame by formula in `<out>_fragments.csv`. On the Fe tip
+cluster that holds most of them, per element, and the number of
+fragments; the fragments of the last frame by formula in
+`<out>_fragments.csv`. Only bonds among the followed atoms hold an atom
+to the body; with `--connect C+H+O` the atoms of those elements also
+connect (as in `ovito_cho.py`): an asperity atom bonded to the body only
+through an adsorbed water O then counts as attached. On the Fe tip
 above no atom detaches (0 in all frames); `tests/synthetic.py` checks the
 counts on a block that loses an atom pair and an atom.
 
@@ -297,11 +301,11 @@ scripts); the choices that change numbers:
   `--shade` in place of the Fe slab detection.
 - `structure.py` (`rdf_check.py`): the first-minimum estimate is widened
   to a valley and the cutoff is flagged when outside it.
-- `detached.py` (`ovito_cho.py`): clusters among the followed atoms only.
-  The original clusters all atoms of the selected elements, so an atom
-  held to the body only through atoms outside the body (e.g. an O of a
+- `detached.py` (`ovito_cho.py`): by default clusters among the followed
+  atoms only; the original clusters all atoms of the selected elements, so
+  an atom held to the body only through atoms outside it (e.g. an O of a
   water molecule bonded to both) counts as attached there and as detached
-  here.
+  here. `--connect C+H+O --alternative` reproduces the original.
 - `bonds.py` (`compute_bonds.py`): sides also by ids or groups; any bridge
   element. Same counts with sides by element.
 - `friction.py`, `thermo.py` (`friction_vs_load.py`): same blocking and

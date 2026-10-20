@@ -21,7 +21,8 @@ Cases:
   structure  diamond: 4 neighbours, C-C-C 109.47 deg
   bonds      C / Si+N sides with O bridges, counted by hand
   detached   a diamond block that loses an atom pair and an atom, then
-             gets the atom back
+             gets the atom back; an atom held to the block only through
+             an O, with and without --connect
   species    two H2O, an OH bonded to an Fe atom, a lone H
 """
 import argparse
@@ -182,6 +183,17 @@ def detached():
     results.append(ok)
     print(f"{'detached':>10}  {'fragment formula':<28} expected        C2  got {','.join(f['formula']):>9}"
           f"  {'PASS' if ok else 'FAIL'}")
+    # a C atom held to the block only through an O (O counts with --connect)
+    top = int(np.argmax(p0[:, 2]))
+    o = p0[top] + [0, 0, 1.4]
+    far = p0[top] + [0, 0, 15]
+    frames = [(0, np.vstack([p0, p0[top] + [0, 0, 1.5], far])),
+              (100, np.vstack([p0, o + [1.21, 0, 0.7], o]))]
+    write_dump("held.lammpstrj", frames, [(0, L[0]), (0, L[1]), (-2, 40)], ["C"] * len(p0) + ["C", "O"])
+    run("detached.py", "held.lammpstrj", "--track", "C", "-o", "held")
+    check("detached", "held by O, followed only", 1, pd.read_csv("held.csv")["detached"].iloc[1], 0)
+    run("detached.py", "held.lammpstrj", "--track", "C", "--connect", "C+O", "-o", "held_c")
+    check("detached", "held by O, --connect C+O", 0, pd.read_csv("held_c.csv")["detached"].iloc[1], 0)
 
 
 def species():

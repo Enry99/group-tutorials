@@ -7,6 +7,7 @@ Usage:
     python detached.py dyn*.lammpstrj --track C+H+O --dt 0.0005 --every 10
     python detached.py 02_slide.lammpstrj --track sub_top --groups Fe_water_Fe.groups.lmp \\
         --cutoff Fe-Fe:2.7 --dt 0.0005 -o tip_wear
+    python detached.py dyn*.lammpstrj --track C+H+O --connect C+H+O --alternative   # as ovito_cho.py
 
 What it does (based on ovito_cho.py / detached_atoms.py, E. Pedretti):
   1. tracked atoms: elements ('C+H+O'), ids ('1:500') or groups of a
@@ -15,13 +16,18 @@ What it does (based on ovito_cho.py / detached_atoms.py, E. Pedretti):
      --alternative to reproduce results obtained with ovito_cho.py; check
      the cutoffs first with structure.py); clusters = atoms connected by
      bonds among the tracked atoms only (a bond to an untracked atom does
-     not hold an atom to the body);
+     not hold an atom to the body); --connect SPEC: the atoms of SPEC also
+     connect clusters (--connect C+H+O as ovito_cho.py, which clusters all
+     C, H, O atoms: an asperity atom held only through an adsorbed water O
+     then counts as attached);
   3. reference frame = the first of the window: its clusters are printed
      (check that the largest is the body); only the atoms of the largest
      one are followed (--all-tracked: all tracked atoms);
-  4. per frame: detached = followed atoms outside the largest cluster,
-     per element; fragments = clusters of detached atoms; at the last
-     frame, the fragments by formula (<out>_fragments.csv);
+  4. per frame: detached = followed atoms outside the cluster that holds
+     most of them (the body), per element; fragments = clusters with
+     detached atoms; at the last frame, the fragments by formula
+     (<out>_fragments.csv; with --connect the formula includes the
+     connecting atoms of the fragment);
   5. frames: all by default (--every, --last, --tmin/--tmax with --dt;
      restart duplicates dropped); writes <out>.csv and <out>.png
      (detached atoms and fragments vs time; --rolling N as in bonds.py).
@@ -49,15 +55,19 @@ def main():
     parser.add_argument("--groups", help="groups file for group names")
     parser.add_argument("--all-tracked", action="store_true",
                         help="follow all tracked atoms, not only the largest cluster")
+    parser.add_argument("--connect", help="atoms that also connect clusters (elements, ids, groups); "
+                        "'--connect C+H+O' as ovito_cho.py")
     parser.add_argument("--rolling", type=int, help="frames of the centred rolling mean")
     parser.add_argument("-o", "--output", default="detached")
     args = parser.parse_args()
 
     pipeline, steps, els = O.load(args.dumps, args.type_names)
     track, desc = O.selector(args.track, els, args.groups)
+    connect, cdesc = O.selector(args.connect, els, args.groups) if args.connect else (None, "")
     frames, t, stage = O.window(steps, args)
     O.add_bonds(pipeline, els, args)
-    print(f"tracked: {desc}\n{len(frames)} frames, steps {steps[frames[0]]}-{steps[frames[-1]]}")
+    print(f"tracked: {desc}" + (f"\nconnecting: {cdesc}" if args.connect else "")
+          + f"\n{len(frames)} frames, steps {steps[frames[0]]}-{steps[frames[-1]]}")
 
     data = pipeline.compute(frames[0])
     el, ids = O.elements_of(data), O.ids_of_frame(data)
@@ -82,8 +92,9 @@ def main():
         el, ids = O.elements_of(data), O.ids_of_frame(data)
         i, j, _ = O.bond_list(data)
         f = np.isin(ids, follow)
-        lab = O.clusters(len(el), i, j, f)
-        det = f & (lab != 0)
+        lab = O.clusters(len(el), i, j, f | connect(el, ids) if args.connect else f)
+        body = np.bincount(lab[f]).argmax() if f.any() else -1
+        det = f & (lab != body)
         row = {"frame": k, "step": steps[k], "time": tk, "stage": sk, "followed": int(f.sum())}
         for e in tracked_els:
             row[f"detached {e}"] = int(np.count_nonzero(det & (el == e)))
@@ -95,7 +106,8 @@ def main():
         print(f"WARNING: {len(follow)} atoms followed, fewer found in some frames (lost atoms?)")
     df.to_csv(args.output + ".csv", index=False)
 
-    frag = Counter(v for c, v in O.formulas(np.where(det, lab, -1), el).items())
+    in_frag = np.isin(lab, np.unique(lab[det])) & (lab >= 0)   # with --connect, connecting atoms too
+    frag = Counter(O.formulas(np.where(in_frag, lab, -1), el).values())
     pd.DataFrame(sorted(frag.items(), key=lambda kv: -kv[1]),
                  columns=["formula", "count"]).to_csv(args.output + "_fragments.csv", index=False)
     last = rows[-1]
