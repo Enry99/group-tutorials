@@ -29,18 +29,32 @@ import sys
 import numpy as np
 
 
+def _pattern(name):
+    """'name = value' at the start of a line or after a comma
+    (ecutwfc = 60, ecutrho = 480)."""
+    return re.compile(rf"(^|,)(\s*{re.escape(name)}\s*=\s*)([^,!\s]+)", re.I)
+
+
 def set_namelist_value(text, name, value):
-    """Replace 'name = old' with 'name = value'; error if not present once."""
-    pattern = re.compile(rf"^(\s*{re.escape(name)}\s*=\s*)([^,!\s]+)", re.M | re.I)
-    new_text, count = pattern.subn(lambda m: f"{m.group(1)}{value}", text)
+    """Replace 'name = old' with 'name = value' (comments after '!' left
+    alone); error if not present once."""
+    pattern, count, lines = _pattern(name), 0, []
+    for line in text.split("\n"):
+        code, bang, comment = line.partition("!")
+        code, n = pattern.subn(lambda m: f"{m.group(1)}{m.group(2)}{value}", code)
+        count += n
+        lines.append(code + bang + comment)
     if count != 1:
         sys.exit(f"'{name}' found {count} times in the template (need exactly 1)")
-    return new_text
+    return "\n".join(lines)
 
 
 def get_namelist_value(text, name):
-    match = re.search(rf"^\s*{re.escape(name)}\s*=\s*([^,!\s]+)", text, re.M | re.I)
-    return match.group(1).strip() if match else None
+    for line in text.split("\n"):
+        match = _pattern(name).search(line.partition("!")[0])
+        if match:
+            return match.group(3).strip()
+    return None
 
 
 def set_kpoints(text, n, nz=None):

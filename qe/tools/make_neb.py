@@ -15,7 +15,7 @@ Options
   --via PWO         a structure the initial path must pass through (INTERMEDIATE_IMAGE);
                     repeat for more. neb.x spreads the images along the broken line.
   --prefix neb      prefix of the NEB files (neb.path, neb.dat, neb.axsf, ...)
-  --max-seconds N   default 85000 (24 h walltime)
+  --max-seconds N   default 82000 (~5% below a 24 h walltime)
 
 The atoms must be in the same order in both end points. Never sort or
 renumber one end point alone: build both from the same structure (as 07 does)
@@ -94,7 +94,7 @@ def main():
     parser.add_argument("final_pwo")
     parser.add_argument("--images", type=int, default=6)
     parser.add_argument("--prefix", default="neb")
-    parser.add_argument("--max-seconds", type=int, default=85000)
+    parser.add_argument("--max-seconds", type=int, default=82000)
     parser.add_argument("--via", action="append", default=[], metavar="PWO")
     args = parser.parse_args()
 

@@ -68,7 +68,7 @@ sbatch job.sh Al111_4L_2x2.pwi
 
 ## 3. H on two sites
 
-When step 2 is finished (`python ../../tools/pwo_summary.py Al111_4L_2x2.pwo`
+When step 2 is finished (`python ../tools/pwo_summary.py 02_clean_slab/Al111_4L_2x2.pwo`
 says `DONE`):
 
 ```bash

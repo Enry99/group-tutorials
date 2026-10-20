@@ -127,7 +127,8 @@ K_POINTS automatic
   for large cells and molecules. Not the same as `1 1 1 0 0 0` (same
   point, slower algorithm).
 - Grids from VASP (e.g. Materials Project): `Gamma N` = QE `N 0`;
-  `Monkhorst-Pack N` = QE `N 0` for odd N, `N 1` for even N.
+  `Monkhorst-Pack N` = QE `N 0` for odd N, `N 1` for even N; in QE use
+  `N 0` anyway (02, section 5).
 
 
 ## Behaviours worth knowing (tested with pw.x 7.3.1)

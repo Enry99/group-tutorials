@@ -4,8 +4,8 @@
 #
 # Usage:   sbatch job.sh input.pwi [NPOOL]
 #   NPOOL = number of k-point pools (-nk). Default 4 = one pool per GPU.
-#           Use 1 for Gamma-only runs (K_POINTS gamma) and when there are fewer
-#           irreducible k-points than GPUs.
+#           Use 1 for Gamma-only runs (K_POINTS gamma; 2 with nspin = 2) and when
+#           there are fewer irreducible k-points than GPUs.
 #SBATCH --job-name=Fe2O3
 #SBATCH --account=CHANGE_ME          # project budget; list yours with: saldo -b
 #SBATCH --partition=boost_usr_prod

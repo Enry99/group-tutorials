@@ -54,6 +54,8 @@ Then the density cutoff alone, at the chosen `ecutwfc`:
 mkdir ../rho
 cd ../rho
 python ../../tools/make_scan.py ../Al_fcc.pwi --param ecutrho 160 240 320 400 480
+sbatch ../job.sh
+python ../../tools/conv_plot.py ecutrho_*.pwo   # when the job has finished
 ```
 
 ## 2. k-points
@@ -96,7 +98,7 @@ python ../../tools/conv_plot.py degauss_*.pwo --ref min   # when finished; refer
 |---|---|
 | `ecutwfc` (dual 8) | within 1 meV/atom of 80 Ry from **30 Ry**; pressure within 0.25 kbar already at 25 Ry |
 | `ecutrho` at 40 Ry | no effect between 160 and 480 Ry (0.005 meV/atom): for this pseudo even dual 4 is enough |
-| k-grid | energy oscillates by ±20 meV/atom up to 16³; within 1 meV/atom from **20³**; pressure within 0.5 kbar from 18³ |
+| k-grid | energy oscillates by ±20 meV/atom up to 16³; within 1 meV/atom from **20³**; pressure within 0.5 kbar from 20³ |
 | `degauss` at 16³ | with respect to 0.002 Ry: −0.5 meV/atom at 0.00735 Ry (0.1 eV), −1.1 at 0.01, −5.6 at 0.02; pressure within 0.8 kbar |
 
 Chosen for the next examples: `ecutwfc = 40`, `ecutrho = 320` (margin

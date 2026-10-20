@@ -54,8 +54,9 @@ example).
 2. **Set `max_seconds`** ~5% below the walltime and, for relax and md,
    **`nstep`**: the default is only 50.
 3. **Choose `disk_io`**: `'none'` for scf runs whose wavefunctions you do
-   not need, `'low'` for relaxations; delete `WORK/` when a run is
-   finished and you will not restart it.
+   not need, `'low'` for relaxations; delete the run's `WORK/` folder (the `outdir`
+   of the inputs, not `$WORK`) when a run is finished and you will not
+   restart it.
 
 <!-- ## Conventions
 

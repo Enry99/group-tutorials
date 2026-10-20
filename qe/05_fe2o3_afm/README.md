@@ -109,8 +109,9 @@ check the species/spin assignment, start again with larger initial moments
 
 ## Test runs
 
-Local check of these inputs with QE 7.3.1 (CPU), a softer pslibrary Fe
-pseudo, 40/320 Ry and 2x2x1 k-points (qualitative only):
+Local check at reduced settings, not these inputs: QE 7.3.1 (CPU), a
+softer pslibrary Fe pseudo, 40/320 Ry and 2x2x1 k-points (qualitative
+only):
 
 | Run | SCF iterations | total / absolute magnetization (μB/cell) | m(Fe) in the output sphere |
 |---|---|---|---|

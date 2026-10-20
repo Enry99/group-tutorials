@@ -128,7 +128,6 @@ see `structures/01_slabs`.
 
 ## Common problems
 
-
 - γ does not converge with the thickness but drifts linearly with N: e_bulk
   from a run with a different cutoff, smearing or k-spacing. The error
   grows with N instead of cancelling.

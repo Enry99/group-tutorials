@@ -1,4 +1,4 @@
-! bcc Fe: template for the E(V) scans of the Pulay-stress test (03, section 3).
+! bcc Fe: template for the E(V) scans of the Pulay-stress test (03 README, 03_pulay_fe).
 ! Low cutoff ON PURPOSE: 40 Ry, against 71 Ry suggested by the pseudopotential.
 ! make_scan.py --scale multiplies A; --set changes the cutoff for the second scan.
 

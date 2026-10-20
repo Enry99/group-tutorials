@@ -21,7 +21,8 @@ BEGIN_PATH_INPUT
   k_min         = 0.1               ! neb.x prints suggested values at the start
   ds            = 1.0               ! optimizer step (a.u.); 0.5 if the path oscillates
   !minimum_image = .true.           ! interpolate across the cell boundary by the
-                                    ! shortest vector (atoms close to the cell edge)
+                                    ! shortest vector (atoms close to the cell edge);
+                                    ! make_neb.py switches it on
 /
 END_PATH_INPUT
 
@@ -33,7 +34,7 @@ BEGIN_ENGINE_INPUT
   outdir      = './WORK'
   pseudo_dir  = '/leonardo/pub/userexternal/epedrett/pseudo'
   disk_io     = 'low'
-  max_seconds = 85000               ! ~5% below the walltime (24 h)
+  max_seconds = 82000               ! ~5% below the walltime (24 h)
 /
 &SYSTEM
   ibrav       = 0

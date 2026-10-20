@@ -2,7 +2,9 @@
 
 One ready-to-run SCF input per structure type. Copy the one closest to your
 material, change element, lattice parameters and internal coordinates, then
-converge cutoff and k-points (02) and the lattice (03).
+converge cutoff and k-points (02) and the lattice (03). The inputs are a
+minimal SCF: for production add `max_seconds` and use the same pseudos,
+cutoffs and `vdw_corr` as the rest of your project.
 
 All files were checked: pw.x 7.3.1 reads them and finds the expected
 symmetry, spglib gives the space group below, and the nearest-neighbour
@@ -46,7 +48,7 @@ Materials Project or of a textbook.
 **Positions.** `ATOMIC_POSITIONS crystal` (fractions of the cell vectors) is
 the safest choice: it does not change when you scale the cell. `angstrom`
 and `bohr` are Cartesian; `alat` is Cartesian in units of the lattice
-parameter (the course used it).
+parameter.
 
 **ibrav ≠ 0 or ibrav = 0?**
 - ibrav ≠ 0: readable, and vc-relax with `cell_dofree = 'ibrav'` keeps the

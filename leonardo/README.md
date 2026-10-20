@@ -5,6 +5,20 @@ the Python environment and how to move data. The code-specific parts
 (modules, jobscripts, checks) are in each code's folder, e.g.
 `qe/00_basics/01_running_qe.md`. More info on the cluster at [CINECA documentation](https://docs.hpc.cineca.it).
 
+## Logging in
+
+CINECA uses two-factor authentication. Once: activate it at
+https://sso.hpc.cineca.it (password and OTP app) and install the
+`smallstep` client (`step`; not the unrelated `step` package of the Linux
+repositories), configured as in the CINECA page
+[Access to the systems](https://docs.hpc.cineca.it/general/access.html).
+Then, every 12 hours (the certificate expires):
+
+```bash
+step ssh login '<your-email>' --provisioner cineca-hpc   # opens the browser: password + OTP
+ssh <username>@login.leonardo.cineca.it
+```
+
 ## The machine
 
 - **Booster** nodes: 32 CPU cores and 4 NVIDIA A100 GPUs (64 GB) each.
@@ -34,7 +48,7 @@ scancel <jobid>             # kill a job
 saldo -b                    # remaining budget
 ```
 
-The example jobscripts use the debug queue (`#SBATCH --qos=boost_qos_dbg`:
+The single-GPU and loop jobscripts use the debug queue (`#SBATCH --qos=boost_qos_dbg`:
 at most 30 min and 2 jobs at a time), good for tests and tutorials. For
 production runs delete that line and set `--time` (at most 24 h on
 `boost_usr_prod`).
@@ -42,7 +56,8 @@ production runs delete that line and set `--time` (at most 24 h on
 ## Python environment
 
 The scripts of the tutorials need Python with a few packages (ase, numpy,
-spglib, matplotlib). First try the shared environment:
+scipy, pandas, spglib, matplotlib; pymatgen for `structures/`, OVITO for
+part of `lammps/analysis/`). First try the shared environment:
 
 ```bash
 source /leonardo/pub/userexternal/epedrett/.venv/macecuda126/bin/activate
@@ -63,7 +78,7 @@ module load python
 mkdir -p $HOME/venvs
 python -m venv $HOME/venvs/YOUR_ENV_NAME
 source $HOME/venvs/YOUR_ENV_NAME/bin/activate
-pip install ase numpy spglib matplotlib
+pip install ase numpy scipy pandas spglib matplotlib pymatgen   # ovito if needed
 echo "source $HOME/venvs/YOUR_ENV_NAME/bin/activate" >> ~/.bashrc
 ```
 

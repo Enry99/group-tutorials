@@ -1,6 +1,6 @@
 ! bcc Fe: vc-relax for the Pulay-stress test, same settings as Fe_bcc.pwi.
-! Starts from a = 2.90 A: the cell shrinks by ~3% while the plane-wave set
-! of the starting cell is kept.
+! Starts from a = 2.90 A: at 40 Ry the cell shrinks by ~7% (README) while the
+! plane-wave set of the starting cell is kept.
 
 &CONTROL
   calculation   = 'vc-relax'

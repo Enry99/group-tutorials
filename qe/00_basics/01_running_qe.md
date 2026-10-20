@@ -73,4 +73,4 @@ qe2xyz Fe2O3.pwi -f cif    # other formats, e.g. CIF for VESTA
 The `.extxyz` of an input also contains the QE species (`qe_type`: colour
 by it to see Fe1/Fe2), the fixed atoms (`fixed`) and the starting
 magnetization (`start_mag`). On your laptop: `pip install ase numpy`, copy
-`tools/qe2xyz.py`, same commands.
+`tools/qe2xyz.py`, then `python qe2xyz.py slab.pwi` and so on.

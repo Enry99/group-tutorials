@@ -63,8 +63,8 @@ ibrav), or read the `.pwo`.
 ### The job dies at start-up on the GPU or after a few SCF steps (memory error in `.err`)
 Search for `Estimated max dynamical RAM per process` in the `.pwo`. It shows a lower bound. To stay safe, the memory per MPI rank (per GPU) should be at least 1.5× (better 2×) that value. Increase the number of nodes or GPUs, or decrease the k-point parallelization (try to halve `-nk`).
 
-#### Always prefer `K_POINTS gamma` for Γ-point calculations, instead of `automatic` with a 1-point grid (`1 1 1  0 0 0`).
-The gamma option uses ~half the memory and is much faster. Exception: DFT+U
+**Always prefer `K_POINTS gamma` for Γ-point calculations**, instead of
+`automatic` with a 1-point grid (`1 1 1  0 0 0`). The gamma option uses ~half the memory and is much faster. Exception: DFT+U
 with `ortho-atomic` (or `norm-atomic`) projectors, not implemented with
 `K_POINTS gamma` (`Gamma-only calculation for this case not implemented`).
 With `K_POINTS gamma` and `nspin = 1` use `-nk 1` (`Gamma-only calculations
@@ -217,7 +217,7 @@ walltime. Start again from the last positions in the `.pwo`.
 
 ---
 
-<!-- ## Template for a new issue
+## Template for a new issue
 
 ```
 Title: <exact error message, first line>
@@ -229,4 +229,4 @@ Error: <copy the exact lines from .pwo / CRASH / .err>
 Files: <path on Leonardo to the run folder>
 
 Solution (when found): <cause> -> <fix>
-``` -->
+```

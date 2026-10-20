@@ -52,7 +52,9 @@ suggested, 30 Ry converged in 02).
 - **Original QE library**: old Vanderbilt ultrasoft files, e.g.
   `Fe.pbe-sp-van.UPF` (Fe with 3s3p semicore, by P. Giannozzi) and the
   `*_van_ak.UPF` files. Still in use in the group for some elements: keep them where a project or dataset already uses
-  them, do not introduce them in new projects without testing.
+  them, do not introduce them in new projects without testing
+  (exception: `Fe.pbe-sp-van.UPF` is the group default for Fe,
+  `tools/group_pseudos.json`).
 - **SG15 (ONCV)** and **PseudoDojo**: norm-conserving, well tested; needed
   when a code or method supports NC only.
 - **SSSP** (Standard Solid-State Pseudopotentials): not a new family but a
