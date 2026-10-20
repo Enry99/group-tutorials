@@ -1,0 +1,60 @@
+# Timestep test, step 1: equilibrate the system at T with a small timestep
+# and write equil.restart, the common starting point of the NVE runs of
+# nve.in (one per timestep).
+# Usage: sbatch job.sh equil.in
+# Needs: a data file (+ groups file), or a restart of your production run
+#
+# Langevin thermostat on all the atoms that move: it equilibrates every
+# degree of freedom, H vibrations included, in a few ps.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "CHANGE_ME"    # element of each atom type, in type order
+variable  read      string data           # data: read_data (+ groups file); restart: read_restart
+variable  start     string CHANGE_ME.data # data file or restart file
+variable  groups    string NULL           # groups file, read if it exists (NULL: none)
+variable  bnd       string "p p p"        # boundary for read_data (a restart has its own)
+variable  fixed     string ts_none        # groups kept fixed: "layer_bot", "layer_bot layer_top" (confined
+                                          # system at constant volume), ts_none = none
+variable  T         index  300            # K (index: can be set with -var T 800)
+variable  t_eq      equal  5              # ps
+variable  dt_eq     equal  0.25           # fs
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+if "${read} == restart" then "read_restart ${start}" else &
+  "boundary ${bnd}" "read_data ${start}"
+variable        has_groups equal is_file(${groups})
+if "${has_groups}" then "include ${groups}"
+
+# ---------- potential ----------
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+
+# ---------- groups of the test (prefix ts_, so they do not clash with yours) ----------
+group           ts_none   empty
+group           ts_fix    union ${fixed}
+group           ts_md     subtract all ts_fix
+
+# ---------- equilibration ----------
+timestep        $(v_dt_eq*0.001)          # ps
+velocity        ts_md create ${T} 4928459 dist gaussian mom yes rot no
+velocity        ts_fix set 0.0 0.0 0.0
+fix             ts_hold   ts_fix setforce 0.0 0.0 0.0
+fix             ts_nve    ts_md  nve
+fix             ts_lgv    ts_md  langevin ${T} ${T} 0.1 48279 zero yes   # damping 0.1 ps
+
+thermo          $(round(0.05/dt))         # every 50 fs
+thermo_style    custom step time temp pe etotal press
+thermo_modify   flush yes
+run             $(round(v_t_eq/dt))
+
+# the restart keeps your groups, not the fixes and the ts_ groups of this input
+unfix           ts_lgv
+unfix           ts_nve
+unfix           ts_hold
+group           ts_md delete
+group           ts_fix delete
+group           ts_none delete
+write_restart   equil.restart

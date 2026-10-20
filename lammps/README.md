@@ -3,10 +3,10 @@
 Commented LAMMPS inputs for the simulations we run with machine-learning
 potentials: relaxation, MD in the basic ensembles, melt-quench, deformation,
 sliding interfaces, indentation and scratch, reactions at high temperature,
-deposition. This is a catalogue rather than a course: each folder is one
-type of simulation. Copy the template closest to what you need, then
-change the settings block at the top. For the commands themselves see the
-[LAMMPS manual](https://docs.lammps.org).
+deposition, and a test of the timestep. This is a catalogue rather than a
+course: each folder is one type of simulation. Copy the template closest
+to what you need, then change the settings block at the top. For the
+commands themselves see the [LAMMPS manual](https://docs.lammps.org).
 
 (Group build on Leonardo: LAMMPS 30 Mar 2026, development version
 16f8568, with Kokkos and ML-IAP; see `00_basics`.)
@@ -24,6 +24,7 @@ change the settings block at the top. For the commands themselves see the
 | 6 | `06_indentation` | `01_indent.in`, `02_scratch.in` | tip on a slab: indentation (displacement control), scratch at constant load |
 | 7 | `07_reactive` | `highT.in` | molecules on a surface at high T, molecule counts during the run |
 | 8 | `08_deposition` | `deposition.in` | atoms or molecules shot at a surface, removal of the free ones |
+| 9 | `09_timestep` | `equil.in`, `nve.in`, `layout.in` | timestep test with H: energy conservation, temperatures, H chemistry vs dt; `check_dt.py` |
 
 The data files of the templates are built with `../structures/` (each
 README gives the command). Also here: `jobscripts/` (Slurm scripts, copied

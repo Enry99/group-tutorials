@@ -1,0 +1,97 @@
+# Timestep test, step 2: NVE from equil.restart with timestep dt. Run it
+# for several dt (job_scan.sh) and compare the logs with check_dt.py.
+# Usage: sbatch job_scan.sh nve.in        (one job per dt)
+#        or: lmp ... -in nve.in -var dt 1.0
+# Needs: equil.restart (equil.in)
+#
+# What is printed (thermo, every t_out):
+#   etotal, pe, ke       conserved in NVE: drift and fluctuations vs dt
+#   c_ts_T               temperature of the atoms that move
+#   c_ts_TH, c_ts_TX     temperature of H and of the other atoms: with a too
+#                        large dt they drift apart, H usually hotter
+#   v_dxH                largest H displacement in one step (A)
+#   c_ts_nfree, v_nH2    free H atoms and H2 molecules (spurious dissociation)
+# and at the end the line "TS_RESULT ..." (drift, mean temperatures).
+# rdf_<tag>.txt: H-X and H-H radial distribution, averaged over the run.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "CHANGE_ME"    # element of each atom type, in type order
+variable  tH        equal  CHANGE_ME      # atom type of H
+variable  start     string equil.restart
+variable  fixed     string ts_none        # as in equil.in
+variable  dt        index  0.5            # fs (index: set it with -var dt 1.0)
+variable  mH        index  0              # > 0: mass of the H type, e.g. 2.014 (deuterium); 0: as it is
+variable  tag       index  nve_dt${dt}    # name of the output files
+variable  t_run     equal  5              # ps
+variable  t_out     equal  0.015          # ps between thermo lines: whole steps for dt 0.25-1.5 fs
+variable  rc_HX     equal  2.0            # A: H with no other atom within rc_HX -> free H or H2
+variable  rc_HH     equal  1.0            # A: free H with one H within rc_HH -> H2
+variable  neigh_every equal 1             # as in your production runs (neigh_modify every N)
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+read_restart    ${start}
+reset_timestep  0
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+neigh_modify    every ${neigh_every} delay 0 check yes
+
+# ---------- groups of the test ----------
+group           ts_none   empty
+group           ts_fix    union ${fixed}
+group           ts_md     subtract all ts_fix
+group           ts_Hall   type ${tH}
+# new H mass: velocities scaled by sqrt(m_old/m_new), so the kinetic energy (T) is kept
+if "${mH} > 0" then &
+  "variable ts_f equal $(sqrt(mass(ts_Hall)/count(ts_Hall)/v_mH))" &
+  "variable ts_vx atom vx*v_ts_f" "variable ts_vy atom vy*v_ts_f" "variable ts_vz atom vz*v_ts_f" &
+  "velocity ts_Hall set v_ts_vx v_ts_vy v_ts_vz units box" &
+  "mass ${tH} ${mH}"
+group           ts_Xall   subtract all ts_Hall
+group           ts_H      intersect ts_Hall ts_md
+group           ts_X      subtract ts_md ts_H
+variable        nmd equal count(ts_md)
+print           "TS_TEST dt ${dt} fs, mH ${mH}, tag ${tag}, atoms that move ${nmd}, H $(count(ts_H))"
+
+# ---------- NVE ----------
+timestep        $(v_dt*0.001)             # ps
+fix             ts_hold   ts_fix setforce 0.0 0.0 0.0
+fix             ts_nve    ts_md  nve
+
+# ---------- what to check ----------
+compute         ts_T  ts_md temp
+compute         ts_TH ts_H  temp
+compute_modify  ts_TH extra/dof 0         # subgroup: no momentum constraint
+compute         ts_TX ts_X  temp
+compute_modify  ts_TX extra/dof 0
+variable        ts_v2 atom vx*vx+vy*vy+vz*vz
+compute         ts_v2max ts_H reduce max v_ts_v2
+variable        dxH equal sqrt(c_ts_v2max)*dt
+compute         ts_cnHX ts_H coord/atom cutoff ${rc_HX} group ts_Xall
+compute         ts_cnHH ts_H coord/atom cutoff ${rc_HH} group ts_Hall
+variable        ts_free atom "c_ts_cnHX==0 && c_ts_cnHH==0"
+variable        ts_inH2 atom "c_ts_cnHX==0 && c_ts_cnHH==1"
+compute         ts_nfree ts_H reduce sum v_ts_free
+compute         ts_nH2   ts_H reduce sum v_ts_inH2
+variable        nH2 equal c_ts_nH2/2
+
+variable        nout equal round(v_t_out/dt)
+variable        nrun equal v_nout*round(v_t_run/v_t_out)   # a multiple of nout
+compute         ts_rdf all rdf 150 ${tH} * ${tH} ${tH} cutoff 3.0
+fix             ts_rdf all ave/time ${nout} $(v_nrun/v_nout) ${nrun} &
+                c_ts_rdf[*] file rdf_${tag}.txt mode vector
+fix             ts_avg all ave/time ${nout} $(v_nrun/v_nout) ${nrun} c_ts_TH c_ts_TX
+
+thermo          ${nout}
+thermo_style    custom step time etotal pe ke c_ts_T c_ts_TH c_ts_TX v_dxH c_ts_nfree v_nH2
+thermo_modify   flush yes
+dump            ts_traj all custom $(round(0.5/dt)) ${tag}.lammpstrj id element xu yu zu
+dump_modify     ts_traj element ${elements} sort id
+
+run             0
+variable        E0 equal $(etotal)
+run             ${nrun}
+
+print           "TS_RESULT dt ${dt} fs, mH ${mH}: Etot end - start $((etotal-v_E0)/v_nmd/(step*dt)*1000.0:%.3f) meV/atom/ps, <T_H> $(f_ts_avg[1]:%.1f) K, <T_X> $(f_ts_avg[2]:%.1f) K"

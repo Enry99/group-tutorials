@@ -1,0 +1,16 @@
+reference: dt = 0.25 fs; energy column Econserve; 368 atoms that move
+dt (fs)    mH  drift (meV/atom/ps)    heat (K/ns)  sigma(E)  conv    dxH  ns/day             Tin   T_thermo_bot   T_thermo_top           TinH           TinX  verdict
+   0.25          -0.0082+-0.0014     -31.9+-5.4       3.247  1.00  0.033    16.4     787.1+-4.6      800.9+-10.8     802.4+-9.6      773.9+-17.6     789.3+-5.2    REF
+    0.5           0.0195+-0.0033      75.3+-12.7      9.013  0.69  0.057    30.3     791.5+-8.2      799.3+-8.8      809.0+-8.1      748.9+-14.1     798.6+-7.9    FAIL
+   0.75           0.0317+-0.0263     122.7+-101.9    46.596  1.59  0.115      44     760.9+-5.5      802.1+-7.9      791.0+-8.6      756.1+-10.9     761.7+-6.1    WARN
+      1           0.1689+-0.0260     653.4+-100.4    51.889  1.00  0.128    59.9     783.0+-7.7      803.3+-10.6     789.3+-9.5      771.8+-14.4     784.8+-7.1    FAIL
+   1.25           0.2367+-0.0235     915.5+-90.8     64.108  0.79  0.146    76.1     783.9+-5.8      790.2+-6.8      807.1+-8.3      754.9+-12.1     788.7+-6.3    FAIL
+      1 2.014    -0.0108+-0.0117     -41.8+-45.3     34.325  0.66  0.091    67.6     789.8+-5.1      797.8+-11.0     795.6+-10.3     798.2+-10.7     788.5+-5.9    PASS
+sigma(E) in meV (whole system), dxH in A, temperatures in K (mean +- standard error)
+dt 0.25: drift of the reference itself -31.9 +- 5.4 K/ns | c_ts_nfree max 0, v_nH2 max 0
+dt 0.5: heating +107 K/ns more than the reference | c_ts_nfree max 0, v_nH2 max 0
+dt 0.75: c_ts_Tin -26 K (+-7); c_ts_TinX -28 K (+-8) | c_ts_nfree max 0, v_nH2 max 0
+dt 1: heating +685 K/ns more than the reference | c_ts_nfree max 0, v_nH2 max 0
+dt 1.25: heating +947 K/ns more than the reference | c_ts_nfree max 0, v_nH2 max 0
+dt 1 mH 2.014: no difference from the reference | c_ts_nfree max 0, v_nH2 max 0
+-> interface_check.csv, interface_check.png

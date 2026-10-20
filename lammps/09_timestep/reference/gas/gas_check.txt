@@ -1,0 +1,16 @@
+reference: dt = 0.25 fs; energy column TotEng; 305 atoms that move
+dt (fs)    mH  drift (meV/atom/ps)    heat (K/ns)  sigma(E)  conv    dxH  ns/day               T             TH             TX  verdict
+   0.25          -0.1274+-0.0137    -492.7+-52.9     25.461  1.00  0.040      83    1194.0+-2.7     1200.6+-2.4     1128.8+-15.5   REF
+    0.5           0.2885+-0.0484    1116.1+-187.4    79.649  0.78  0.084     176    1198.8+-4.1     1188.8+-3.1     1229.4+-16.8   FAIL
+   0.75           1.9288+-0.1082    7460.7+-418.6   183.703  0.80  0.135     251    1222.9+-6.4     1208.2+-8.0     1280.7+-11.0   FAIL
+      1           6.8175+-0.3527   26371.2+-1364.1   570.985  1.40  0.177     258    1237.8+-11.4    1239.3+-14.1    1202.1+-9.4    FAIL
+   1.25       624407.9173+-117756.1330 2415317663.9+-455501059.9 68273251.059 107260.21 43.147     nan  1732032.0+-680032.6 1962316.9+-767759.9 363007.9+-162803.7  FAIL
+      1 2.014     1.2498+-0.1121    4834.5+-433.8   181.795  0.45  0.123     331    1214.9+-5.6     1208.0+-5.2     1227.4+-16.3   FAIL
+sigma(E) in meV (whole system), dxH in A, temperatures in K (mean +- standard error)
+dt 0.25: drift of the reference itself -492.7 +- 52.9 K/ns | c_ts_nfree max 2, v_nH2 max 40 | HX peak 1.093 A, HH peak 0.744 A
+dt 0.5: heating +1609 K/ns more than the reference; c_ts_TH -12 K (+-4); c_ts_TX +101 K (+-23) | c_ts_nfree max 2, v_nH2 max 40 | HX peak 1.093 A, HH peak 0.747 A
+dt 0.75: heating +7953 K/ns more than the reference; c_ts_T +29 K (+-7); c_ts_TX +152 K (+-19) | c_ts_nfree max 2, v_nH2 max 40 | HX peak 1.093 A, HH peak 0.741 A
+dt 1: heating +26864 K/ns more than the reference; c_ts_T +44 K (+-12); c_ts_TX +73 K (+-18); HH peak -0.006 A, height x1.04 | c_ts_nfree max 2, v_nH2 max 40 | HX peak 1.092 A, HH peak 0.738 A
+dt 1.25: ERROR: Lost atoms: original 305 current 302; heating +2415318157 K/ns more than the reference; sigma(E) grows faster than dt^2 (x107260.2); c_ts_nfree up to 241 (ref 2) | c_ts_nfree max 241, v_nH2 max 40
+dt 1 mH 2.014: heating +5327 K/ns more than the reference; c_ts_T +21 K (+-6); c_ts_TX +99 K (+-22); HH peak -0.006 A, height x1.03 | c_ts_nfree max 2, v_nH2 max 40 | HX peak 1.092 A, HH peak 0.738 A
+-> gas_check.csv, gas_check.png

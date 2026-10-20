@@ -1,0 +1,3 @@
+# Time-averaged data for fix ts_rdf
+# TimeStep Number-of-rows
+# Row c_ts_rdf[1] c_ts_rdf[2] c_ts_rdf[3] c_ts_rdf[4] c_ts_rdf[5]

@@ -1,0 +1,130 @@
+# Timestep test in the layout of a sliding or indentation run, at constant
+# load and without sliding: fixed layer, thermostatted layers (Nose-Hoover on
+# the temperature without the COM motion, as in 05_sliding), NVE in between,
+# constant normal force on the top layer. With thermostats the conserved
+# quantity is econserve = etotal + ecouple (ecouple: energy taken by the
+# thermostats), so its drift is the integration error. In the inner NVE
+# region (the interface) that error becomes heat: its temperature, H and
+# other atoms apart, is compared with the thermostat temperature.
+# Usage: sbatch job_scan.sh layout.in      (one job per dt)
+# Needs: a restart at the end of the load stage (05_sliding/01_load.in ->
+#        load.restart, or yours), or a data file + groups file
+#
+# Printed: econserve, etotal, ecouple; c_ts_Tin, c_ts_TinH, c_ts_TinX (inner
+# region: all, H, other atoms); the thermostatted groups; v_gap; v_dxH,
+# c_ts_nfree, v_nH2 as in nve.in; "TS_RESULT ..." at the end.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "CHANGE_ME"    # element of each atom type, in type order
+variable  tH        equal  CHANGE_ME      # atom type of H
+variable  read      string restart        # restart: read_restart; data: read_data + groups file
+variable  start     string CHANGE_ME.restart
+variable  groups    string NULL           # groups file, read if it exists (NULL: none)
+variable  bnd       string "p p p"        # boundary for read_data
+variable  fixed     string layer_bot      # fixed groups (forces zero, not integrated)
+variable  thermo_g  string "thermo_bot thermo_top"   # thermostatted groups, one thermostat each
+variable  load_g    string layer_top      # group with the load
+variable  rigid     equal  0              # 1: load group as a rigid body (fix rigid/nve single)
+variable  P         equal  1.0            # GPa on lx*ly (0: no load)
+variable  T         index  300            # K
+variable  dt        index  0.5            # fs (index: set it with -var dt 1.0)
+variable  mH        index  0              # > 0: mass of the H type, e.g. 2.014 (deuterium)
+variable  tag       index  layout_dt${dt} # name of the output files
+variable  t_run     equal  10             # ps
+variable  t_out     equal  0.015          # ps between thermo lines: whole steps for dt 0.25-1.5 fs
+variable  tdamp     equal  0.1            # ps, the same for every dt (100*dt would change with dt)
+variable  rc_HX     equal  2.0            # A, as in nve.in
+variable  rc_HH     equal  1.0            # A, as in nve.in
+variable  neigh_every equal 1             # as in your production runs (neigh_modify every N)
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+if "${read} == restart" then "read_restart ${start}" else &
+  "boundary ${bnd}" "read_data ${start}"
+variable        has_groups equal is_file(${groups})
+if "${has_groups}" then "include ${groups}"
+reset_timestep  0
+pair_style      mliap unified ${model} 0
+pair_coeff      * * ${elements}
+neigh_modify    every ${neigh_every} delay 0 check yes
+
+# ---------- groups of the test ----------
+group           ts_none   empty
+group           ts_fix    union ${fixed}
+group           ts_th     union ${thermo_g}
+group           ts_load   union ${load_g}
+group           ts_md     subtract all ts_fix
+group           ts_in     subtract all ts_fix ts_th ts_load   # inner NVE region
+group           ts_Hall   type ${tH}
+# new H mass: velocities scaled by sqrt(m_old/m_new), so the kinetic energy (T) is kept
+if "${mH} > 0" then &
+  "variable ts_f equal $(sqrt(mass(ts_Hall)/count(ts_Hall)/v_mH))" &
+  "variable ts_vx atom vx*v_ts_f" "variable ts_vy atom vy*v_ts_f" "variable ts_vz atom vz*v_ts_f" &
+  "velocity ts_Hall set v_ts_vx v_ts_vy v_ts_vz units box" &
+  "mass ${tH} ${mH}"
+group           ts_Xall   subtract all ts_Hall
+group           ts_inH    intersect ts_in ts_Hall
+group           ts_inX    subtract ts_in ts_inH
+variable        nmd equal count(ts_md)
+print           "TS_TEST dt ${dt} fs, mH ${mH}, tag ${tag}, atoms that move ${nmd}, H in the inner region $(count(ts_inH)), thermostat ${T} K"
+
+# ---------- integration ----------
+timestep        $(v_dt*0.001)             # ps
+fix             ts_hold   ts_fix  setforce 0.0 0.0 0.0
+if "${read} == data" then "velocity ts_md create ${T} 4928459 dist gaussian mom yes rot no"
+velocity        ts_fix set 0.0 0.0 0.0
+fix             ts_nve    ts_in   nve
+if "${rigid} == 1" then "fix ts_rig ts_load rigid/nve single" else "fix ts_nveload ts_load nve"
+variable        fz equal -v_P*1.0e9*lx*ly*1.0e-20/ternary(count(ts_load)>0,count(ts_load),1)/1.602176634e-9   # eV/A per atom
+if "${P} > 0" then &
+  "fix ts_load ts_load addforce 0.0 0.0 $(v_fz)" &
+  "fix_modify ts_load energy yes"         # energy of the constant force, in pe and econserve
+
+# one Nose-Hoover thermostat per group, each with its temperature without COM motion
+variable        thcols string c_ts_Tin        # thermo columns: inner region, then each thermostat
+variable        tg index ${thermo_g}
+label           ts_loop
+  compute       ts_T_${tg} ${tg} temp/com
+  fix           ts_nvt_${tg} ${tg} nvt temp ${T} ${T} ${tdamp}
+  fix_modify    ts_nvt_${tg} temp ts_T_${tg}
+  variable      thcols string "${thcols} c_ts_T_${tg}"
+next            tg
+jump            SELF ts_loop
+
+# ---------- what to check ----------
+compute         ts_Tin  ts_in  temp
+compute_modify  ts_Tin  extra/dof 0
+compute         ts_TinH ts_inH temp
+compute_modify  ts_TinH extra/dof 0
+compute         ts_TinX ts_inX temp
+compute_modify  ts_TinX extra/dof 0
+variable        ts_v2 atom vx*vx+vy*vy+vz*vz
+compute         ts_v2max ts_Hall reduce max v_ts_v2
+variable        dxH equal sqrt(c_ts_v2max)*dt
+compute         ts_cnHX ts_Hall coord/atom cutoff ${rc_HX} group ts_Xall
+compute         ts_cnHH ts_Hall coord/atom cutoff ${rc_HH} group ts_Hall
+variable        ts_free atom "c_ts_cnHX==0 && c_ts_cnHH==0"
+variable        ts_inH2 atom "c_ts_cnHX==0 && c_ts_cnHH==1"
+compute         ts_nfree ts_Hall reduce sum v_ts_free
+compute         ts_nH2   ts_Hall reduce sum v_ts_inH2
+variable        nH2 equal c_ts_nH2/2
+variable        gap equal xcm(ts_load,z)-xcm(ts_fix,z)
+
+variable        nout equal round(v_t_out/dt)
+variable        nrun equal v_nout*round(v_t_run/v_t_out)   # a multiple of nout
+fix             ts_avg all ave/time ${nout} $(v_nrun/v_nout) ${nrun} c_ts_TinH c_ts_TinX
+
+thermo          ${nout}
+thermo_style    custom step time econserve etotal pe ke ecouple ${thcols} c_ts_TinH c_ts_TinX &
+                v_gap v_dxH c_ts_nfree v_nH2
+thermo_modify   flush yes
+dump            ts_traj all custom $(round(0.5/dt)) ${tag}.lammpstrj id element xu yu zu
+dump_modify     ts_traj element ${elements} sort id
+
+run             0
+variable        E0 equal $(econserve)
+run             ${nrun}
+
+print           "TS_RESULT dt ${dt} fs, mH ${mH}: econserve end - start $((econserve-v_E0)/v_nmd/(step*dt)*1000.0:%.3f) meV/atom/ps, inner region <T_H> $(f_ts_avg[1]:%.1f) K, <T_X> $(f_ts_avg[2]:%.1f) K (thermostat ${T} K)"
