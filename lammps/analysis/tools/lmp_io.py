@@ -16,7 +16,23 @@ import numpy as np
 import pandas as pd
 
 EV_PER_A3_TO_GPA = 160.21766208         # 1 eV/A^3 in GPa
+STRESS_TO_GPA = {"metal": EV_PER_A3_TO_GPA,  # force/area of the units style -> GPa
+                 "real": 6.9477}         # 1 kcal/mol/A^3 = 4184 J / N_A / 1e-30 m^3
 TIME_UNIT = {"metal": "ps", "real": "fs"}
+
+
+def log_units(runs, given=None):
+    """Units style: given (--units), else the 'units' line of the logs, else
+    metal with a note (a log that starts from read_restart has no units line)."""
+    if given:
+        return given
+    found = {r["units"] for r in runs if r["units"]}
+    if len(found) > 1:
+        raise SystemExit(f"logs with different units {sorted(found)}: give --units")
+    if not found:
+        print("no 'units' line in the logs: metal assumed (--units to change)")
+        return "metal"
+    return found.pop()
 
 
 def natural_key(s):
@@ -87,62 +103,95 @@ def read_log(path):
 
 def join_runs(runs, dts=None, minimize=False):
     """Concatenate thermo tables (runs of one or several logs, in order) on
-    one time axis. A new stage starts where the step counter goes back
-    (reset_timestep) or a new log begins; stages are laid end to end. The
-    first row of a run that repeats the last row of the previous one is
-    dropped. Time: the Time column if printed, else Step x timestep, run by
-    run (a change of timestep inside a stage is followed).
-    dts: timestep per stage (time units of the log), to override the logs.
-    Minimizations are left out unless minimize=True (their steps are
-    iterations, not time). Returns a DataFrame with the columns, 'time'
-    and 'stage'."""
-    out, stage, t_end, prev = [], -1, 0.0, None
+    one time axis. Stages and overlaps follow the step counter, as for the
+    dumps (clean_steps): a run that starts at or below the first step of
+    the current stage starts a new stage (reset_timestep); one that starts
+    inside the current stage continues it from a restart, and the earlier
+    rows from that step on are dropped (the later copy is kept). Stages are
+    laid end to end. Time: Step x dts[stage] if dts is given, else the Time
+    column if printed, else Step x the timestep of the run (a change of
+    timestep inside a stage is followed). Minimizations are left out
+    unless minimize=True (their steps are iterations, not time). Returns a
+    DataFrame with the columns, 'time' and 'stage'."""
+    done, cur, stage, first, t_end = [], None, -1, None, 0.0
     for r in runs:
         if r["minimize"] and not minimize:
             continue
         d = pd.DataFrame(r["columns"])
         step = d["Step"].to_numpy()
-        new_stage = prev is None or step[0] < prev["step"] or r["log"] != prev["log"]
-        if new_stage:
-            stage += 1
-        dt = dts[min(stage, len(dts) - 1)] if dts else r["dt"]
-        if "Time" in d:
-            tc = d["Time"].to_numpy()
-            ref = tc[0] if new_stage else prev["time_col"]
-        elif dt is not None:
-            tc = step * dt
-            ref = tc[0] if new_stage else prev["step"] * dt
+        if dts:
+            dt = dts[min(max(stage, 0), len(dts) - 1)]
         else:
-            raise SystemExit(f"{r['log']}: no Time column and no timestep: give --dt")
-        d = d.assign(time=t_end + tc - ref, stage=stage)
-        if not new_stage and step[0] == prev["step"]:
-            d = d.iloc[1:]
-        if d.empty:
+            dt = r["dt"]
+        if dts or "Time" not in d:
+            if dt is None:
+                raise SystemExit(f"{r['log']}: no Time column and no timestep: give --dt")
+            tc = step * dt
+        else:
+            tc = d["Time"].to_numpy()
+        new = cur is None or (step[0] < cur["Step"].iloc[-1] and step[0] <= first)
+        if new:
+            if cur is not None:
+                done.append(cur)
+                t_end = cur["time"].iloc[-1]
+            stage += 1
+            first = step[0]
+            if dts:                                       # timestep of the new stage
+                tc = step * dts[min(stage, len(dts) - 1)]
+            cur = d.assign(time=t_end + tc - tc[0], stage=stage)
             continue
-        out.append(d)
-        t_end = d["time"].iloc[-1]
-        prev = {"step": step[-1], "log": r["log"], "time_col": tc[-1]}
-    return pd.concat(out, ignore_index=True)
+        before = cur[cur["Step"] <= step[0]]
+        at = before[before["Step"] == step[0]]
+        if len(at):
+            t0 = at["time"].iloc[-1]
+        else:                                             # gap: extrapolate with this run's timestep
+            rate = (tc[1] - tc[0]) / (step[1] - step[0]) if len(step) > 1 else (dt or 0.0)
+            t0 = before["time"].iloc[-1] + (step[0] - before["Step"].iloc[-1]) * rate
+        cur = pd.concat([cur[cur["Step"] < step[0]], d.assign(time=t0 + tc - tc[0], stage=stage)],
+                        ignore_index=True)
+    if cur is None:
+        raise SystemExit("no thermo output (only minimizations? use --minimize)")
+    return pd.concat(done + [cur], ignore_index=True)
 
 
 # ---------------------------------------------------------------- dumps
+def clean_steps(steps):
+    """Indices of the frames to keep, from their step counters in file
+    order: a frame that repeats the step of the frame before it (the
+    boundary frame written again after a restart) is dropped, the later
+    copy kept; a step that goes back but stays above the first step of the
+    current stage means a continuation from an earlier restart, and the
+    earlier frames from that step on are dropped; a step that goes back to
+    the first step of the stage or below starts a new stage
+    (reset_timestep)."""
+    keep, first, start = [], None, 0                      # start: position of the stage in keep
+    for k, s in enumerate(steps):
+        if keep and s <= steps[keep[-1]]:
+            if s > first or s == steps[keep[-1]]:
+                while len(keep) > start and steps[keep[-1]] >= s:
+                    keep.pop()
+            else:
+                start = len(keep)
+        if len(keep) == start:
+            first = s
+        keep.append(k)
+    return np.array(keep, dtype=int)
+
+
 def index_dump(files, dedup=True):
-    """(file, byte offset, step) of every frame of text dumps, in file order.
-    A frame with the same step as the frame before it (restart overlap: the
-    last frame of a file written again at the start of the next) is dropped,
-    the later copy kept (dedup=False keeps both). Steps that come back after
-    a reset_timestep are different frames and are all kept."""
+    """(file, byte offset, step) of every frame of text dumps, in file
+    order; dedup=True keeps only the frames of clean_steps (restart
+    overlaps removed)."""
     out = []
     for fn in files:
         with open(fn, "rb") as fh, mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm:
             pos = mm.find(b"ITEM: TIMESTEP")
             while pos >= 0:
                 nl = mm.find(b"\n", pos)
-                step = int(mm[nl + 1:mm.find(b"\n", nl + 1)])
-                if dedup and out and out[-1][2] == step:
-                    out.pop()
-                out.append((fn, pos, step))
+                out.append((fn, pos, int(mm[nl + 1:mm.find(b"\n", nl + 1)])))
                 pos = mm.find(b"ITEM: TIMESTEP", pos + 14)
+    if dedup:
+        out = [out[k] for k in clean_steps([s for _, _, s in out])]
     return out
 
 
@@ -173,16 +222,6 @@ def read_frame(fn, pos):
         d = d.sort_values("id", kind="stable").reset_index(drop=True)
     return {"step": step, "lo": lo, "hi": hi, "tilt": np.array(tilt),
             "pbc": [x == "pp" for x in hdr[-3:]], "cols": d}
-
-
-def frames(files, first=0, last=None, every=1):
-    """Iterate over the frames of text dumps (list or patterns), with the
-    frame index: yields (k, frame)."""
-    idx = index_dump(expand(files))
-    sel = list(range(len(idx)))[first:last][::every]
-    for k in sel:
-        fn, pos, _ = idx[k]
-        yield k, read_frame(fn, pos)
 
 
 def window(steps, dt=None, tmin=None, tmax=None, last=None, every=1):

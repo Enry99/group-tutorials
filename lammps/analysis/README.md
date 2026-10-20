@@ -3,20 +3,28 @@
 Scripts for the outputs of the templates in `../`: thermo logs (time
 series, friction with error bars) and text dumps (density and velocity
 profiles, local structure, bonds across an interface, detached atoms,
-molecule counts). They run from any folder; `-h` prints the usage.
+molecule counts). They run from the folder of your run, called by path;
+`-h` prints the usage:
+
+```bash
+T=~/group-tutorials/lammps/analysis/tools     # where your clone is
+python $T/friction.py 02_slide.log --force "-f_load[1]" --data Fe_water_Fe.data
+```
+
+The examples below write `python friction.py` for short.
 
 ## Contents
 
-| Script | Reads | Gives | OVITO |
-|---|---|---|---|
-| `thermo.py` | logs | columns and expressions vs time across stages; averages with error bars | no |
-| `friction.py` | logs | friction stress τ, normal stress P, μ, with error bars; τ vs P for several runs | no |
-| `zprofile.py` | dumps | density along z per element or group (also in `fix ave/chunk` format) | no |
-| `vprofile.py` | dumps | v_x(z) from unwrapped positions, shear plane, width w10-90; overlays | no |
-| `structure.py` | dumps | partial RDFs with a check of the bond cutoffs, coordination, bond angles | yes |
-| `bonds.py` | dumps | bonds across an interface, direct and bridged, per nm² vs time | yes |
-| `detached.py` | dumps | atoms detached from a body (wear) and their fragments vs time | yes |
-| `species.py` | dumps | molecules by formula vs time, free or bound to a surface | yes |
+| Script | Reads | Gives | OVITO | For |
+|---|---|---|---|---|
+| `thermo.py` | logs | columns and expressions vs time across stages; averages with error bars | no | all |
+| `friction.py` | logs | friction stress τ, normal stress P, μ, with error bars; τ vs P for several runs | no | 05, 06 |
+| `zprofile.py` | dumps | density along z per element or group (also in `fix ave/chunk` format) | no | 05, 07, 08 |
+| `vprofile.py` | dumps | v_x(z) from unwrapped positions, shear plane, width w10-90; overlays | no | 05 |
+| `structure.py` | dumps | partial RDFs with a check of the bond cutoffs, coordination, bond angles | yes | 03, any (cutoffs) |
+| `bonds.py` | dumps | bonds across an interface, direct and bridged, per nm² vs time | yes | 05, 06 |
+| `detached.py` | dumps | atoms detached from a body (wear) and their fragments vs time | yes | 05, 06 |
+| `species.py` | dumps | molecules by formula vs time, free or bound to a surface | yes | 07, 08 |
 
 In `tools/` also the shared modules (`lmp_io.py`: readers, time axis,
 statistics; `ovito_io.py`; `cutoffs.py`: bond cutoffs). `tests/synthetic.py`
@@ -29,11 +37,13 @@ checks every script on synthetic data with known answers.
   shared environment of `../../leonardo/README.md` and `pip install` what
   is missing.
 - `structure.py`, `bonds.py`, `detached.py`, `species.py` also need
-  OVITO (`pip install ovito`; tested with 3.16.1). The environment
-  `/leonardo/pub/userexternal/epedrett/.venv/mace` is the one of the
-  OVITO scripts these come from; check it with `python -c "import ovito"`.
-- After installing or updating: `python tests/synthetic.py` (31 checks,
-  about 15 s; the OVITO ones are skipped without OVITO).
+  OVITO (tested with 3.16.1). Check with `python -c "import ovito"`; if it
+  fails, use the environment where the original OVITO scripts were run
+  (`source /leonardo/pub/userexternal/epedrett/.venv/mace/bin/activate`,
+  same check) or `pip install ovito` in your own.
+- After installing or updating: `python $T/../tests/synthetic.py` (38
+  checks, under a minute, in a temporary folder; the OVITO ones are
+  skipped without OVITO).
 - The dump tools read every frame of the window: for long trajectories
   use `--every`, or run them in a job rather than on the login node.
 
@@ -44,29 +54,31 @@ checks every script on synthetic data with known answers.
   `--type-names Fe O H` (element of type 1, 2, ...). Without `id`, atoms
   are matched by row order: valid only with `sort id` and a constant
   number of atoms.
-- **Several files** (stages, restarts) in chronological order on the
-  command line. A pattern is expanded in natural order (`dyn2` before
-  `dyn10`); the order of the arguments is kept. A frame written twice at a
-  restart is counted once (the later copy).
-- **Time.** Logs carry the timestep. Dumps do not: give `--dt` (one value
-  per stage if they differ, in the time unit of the run, ps for `metal`).
-  A `reset_timestep` starts a new stage; stages are laid end to end from
-  t = 0 and the boundaries are dashed in the plots. Without `--dt` the dump
-  tools use the step count.
+- **Several files** (stages, jobs) in chronological order on the command
+  line. A pattern is expanded in natural order (`dyn2` before `dyn10`);
+  the order of the arguments is kept.
+- **Stages and restarts**, read from the step counter: a `reset_timestep`
+  starts a new stage (the templates reset at the start of each stage). A
+  job that continues a run from a restart joins it: the frames or log rows
+  written twice (after the restart step) are counted once, the later
+  copy.
+- **Time.** Logs carry the timestep and the units (`metal`: ps, `real`:
+  fs). Dumps do not: give `--dt` (one value per stage if they differ, in
+  the time unit of the run). Stages are laid end to end from t = 0, the
+  boundaries dashed in the plots. Without `--dt` the dump tools use the
+  step count (`vprofile.py` needs `--dt`).
 - **Frames**: `--tmin/--tmax` (time as above), `--last N` (the last N
-  frames of the window), `--every N`.
+  frames of the window), `--every N` (not in `vprofile.py`).
 - **Atom selections** (`--side1`, `--track`, `--centres`): elements
   (`C+H+O`), id ranges (`1:500`), id lists (`1,5,9`) or the groups of the
   groups file written by `structures/` (`--groups file.groups.lmp`,
   names joined with `+`).
-- **Bonds**: distance cutoffs per element pair, from `cutoffs.py`: a table
-  at about 1.25 times the bond length (`compute_bonds.py`, E. Pedretti),
-  with `--alternative` the values of `ovito_cho.py` for C-C, C-H, C-O,
-  H-H; other pairs 1.25 times the sum of the covalent radii, printed as
-  such. That last rule is wrong for metals (Fe-Fe 3.30 Å takes in the
-  second neighbours of bcc Fe). Change any value with `--cutoff Fe-Fe:2.7`,
-  and check the cutoffs with `structure.py` on your system before counting
-  bonds.
+- **Bonds**: distance cutoffs per element pair from `cutoffs.py`, about
+  1.25 times the bond length; pairs not in its table get 1.25 times the
+  sum of the covalent radii, which is wrong for metals (Fe-Fe 3.30 Å takes
+  in the second neighbours of bcc Fe). Check the cutoffs with
+  `structure.py` on your system before counting bonds, and change any
+  value with `--cutoff Fe-Fe:2.7`.
 - **Error bars**: standard error of the mean by blocking
   (Flyvbjerg-Petersen), integrated correlation time `tau_int` and
   independent samples `N_eff` = rows / `tau_int`. Below 20 independent
@@ -76,9 +88,9 @@ checks every script on synthetic data with known answers.
 
 On the local checks of the templates (classical potentials, reduced
 settings: see each README). They show what the scripts print and plot; the
-numbers are not physical results. Logs from `../0*/reference/`; the dumps
-are written by running the local checks. Full output in
-`reference/commands_output.txt`.
+numbers are not physical results. The logs are `../0*/reference/*_cpu-serial.log`,
+named here as a run names them (`01_load.log`); the dumps are written by
+running the local checks. Full output in `reference/commands_output.txt`.
 
 ### thermo.py: time series
 
@@ -92,7 +104,8 @@ python thermo.py 02_slide.log -c "-f_load[1]" "f_hold_bot[1]" v_gap --stats
 expressions of columns (quote them). Minimizations are left out
 (`--minimize` keeps them). `--stats` gives, per stage, mean, standard
 deviation, error of the mean, `tau_int` and `N_eff`, without the first
-20 % of the stage (`--skip`) or before `--tmin`.
+20 % of the stage (`--skip`) or before `--tmin`; the table also goes to
+`<out>_stats.csv`.
 
 ![thermo](reference/load_slide.png)
 
@@ -104,18 +117,20 @@ mean over 21 rows.
 ### friction.py: friction stress and coefficient
 
 ```bash
-python friction.py 02_slide.log --force "-f_load[1]" --normal "f_load[3]" --data Fe_water_Fe.data
+python friction.py 02_slide.log --force "-f_load[1]" --normal "f_load[3]" --data Fe_water_Fe.data --labels 02_slide
 python friction.py load_*/02_slide.log --force "-f_load[1]" --normal "f_load[3]" \
     --data load_*/Fe_water_Fe.data --labels 1GPa 2GPa 5GPa -o friction_vs_load
+python friction.py 02_slide.log,02_slide_cont.log --force "-f_load[1]" --data Fe_water_Fe.data
 ```
 
-τ = F/A and P = N/A in GPa, A = lx ly from the data file (or `--area`),
-over the last stage of each log without its first 20 % (`--skip`) or
-before `--tmin` (time from the start of the stage). The force is the
-force of the system on the driven layer (`-f_load[1]`), or on the fixed
-one (`f_hold_bot[1]`), or their mean `"0.5*(f_hold_bot[1]-f_load[1])"`:
-in steady state they agree. With several logs: one row each in the csv
-and τ vs P.
+τ = F/A and P = N/A in GPa (units `metal` or `real`), A = lx ly from the
+data file (or `--area`), over the last stage of each run without its
+first 20 % (`--skip`) or its first `--skip-time` (run-in). The force is
+the force of the system on the driven layer (`-f_load[1]`), or on the
+fixed one (`f_hold_bot[1]`), or their mean
+`"0.5*(f_hold_bot[1]-f_load[1])"`: in steady state they agree. One row of
+the csv per run, and τ vs P for several runs. A run split over several
+jobs: its logs joined by commas (third command).
 
 ```
          label  rows          tau (GPa) tau_int  N_eff          P (GPa)              mu
@@ -130,7 +145,8 @@ check (`../05_sliding/README.md`).
 Blocking curve: the error of the mean for growing block sizes, relative
 to the uncorrelated estimate. A flat tail means the error bar has
 converged; a curve still rising at the right end means the run is too
-short and the error is a lower bound.
+short and the error is a lower bound. The last points have few blocks and
+scatter (here they drop); the error bar takes the maximum over the curve.
 
 ### zprofile.py: density profiles
 
@@ -159,25 +175,20 @@ python vprofile.py --overlay 1GPa/vx.csv 5GPa/vx.csv --labels "1 GPa" "5 GPa" -o
 ```
 
 v_x of each atom is its displacement in `xu` between two frames `--lag`
-apart over their time interval (no velocities in the dump needed),
-binned in z (0.2 Å). Then a tanh fit (shear plane z0, half-width w), a
-straight-line (Couette) fit over the sheared region, and the model-free
-width w10-90 (z from 10 % to 90 % of the velocity drop; 2.20 w for a tanh,
-0.80 h for a linear profile of thickness h). The shear is LOCALISED if
-2w is below a quarter of the profile, else DISTRIBUTED; only the matching
-fit is drawn. `--overlay` aligns profiles where v reaches 95 % of the drop
-and writes their widths.
+apart (no velocities in the dump needed), binned in z (0.2 Å); leave out
+the run-in with `--tmin`. The script fits a tanh (shear plane z0,
+half-width w) and a straight line (Couette), says whether the shear is
+LOCALISED or DISTRIBUTED, and gives the width w10-90 (z from 10 % to 90 %
+of the velocity drop), the number to compare between runs; `--overlay`
+puts several profiles together. What to check: no warning about R² (the
+profile is too noisy), and w10-90 above 3 bins (else halve `--bin`).
 
-The local check of `05_sliding` (45 ps at 10 m/s in a Lennard-Jones
-liquid) is too short for a profile: the tanh fit has R² = 0.32, w10-90 is
-1.9 Å with the defaults and 10.2 Å with `--bin 0.5 --lag 5`, and the
-script says so. Below, the synthetic profile of `tests/synthetic.py`
-(tanh, z0 = 20 Å, w = 1.5 Å):
+The local check of `05_sliding` (45 ps) is too short and gets the R²
+warning. Below, the synthetic profile of `tests/synthetic.py` (tanh,
+z0 = 20 Å, w = 1.5 Å, so w10-90 = 3.30 Å): the script gives z0 = 20.01 Å,
+w = 1.49 Å, w10-90 = 3.37 Å.
 
 ![velocity profile](reference/vprofile_synthetic.png)
-
-z0 = 20.01 Å, w = 1.49 Å, w10-90 = 3.37 Å (3.30 expected). Widths below
-3 bins are not resolved: halve `--bin` and check.
 
 ### structure.py: RDF, cutoffs, coordination, angles
 
@@ -235,7 +246,7 @@ touches less than the cell).
 
 Local check of `06_indentation` (EAM Fe): thermalization 0-20 ps,
 approach 20-100 ps, hold 100-120 ps, retraction 120-200 ps. Bonds form
-from contact at about 22 ps and 271 remain after the retraction: the
+from contact at about 24 ps and 271 remain after the retraction: the
 clean Fe tip stays welded to the slab.
 
 ### detached.py: wear
@@ -246,24 +257,22 @@ python detached.py 01_indent.lammpstrj --track sub_top --groups Fe_tip_on_Fe.gro
     --cutoff Fe-Fe:2.7 --dt 0.001 -o tip
 ```
 
-The atoms of `--track` are clustered by their bonds among themselves; the
-largest cluster at the first frame is the body (its composition is
-printed: check it) and its atoms are followed (`--all-tracked`: all
-tracked atoms). At each frame, detached = followed atoms outside the
-cluster that holds most of them, per element, and the number of
-fragments; the fragments of the last frame by formula in
-`<out>_fragments.csv`. Only bonds among the followed atoms hold an atom
-to the body; with `--connect C+H+O` the atoms of those elements also
-connect (as in `ovito_cho.py`): an asperity atom bonded to the body only
-through an adsorbed water O then counts as attached. On the Fe tip
-above no atom detaches (0 in all frames); `tests/synthetic.py` checks the
-counts on a block that loses an atom pair and an atom.
+The atoms of `--track` are clustered by their bonds; at the first frame
+the cluster with most of them is the body (the clusters are printed:
+check it) and its atoms are followed. At each frame: detached = followed
+atoms outside the body, per element, and the number of fragments; the
+fragments of the last frame by formula in `<out>_fragments.csv`. Only
+bonds among the followed atoms hold an atom to the body; with `--connect
+C+H+O` atoms of those elements also connect, so an asperity atom bonded
+to the body only through an adsorbed water O counts as attached. On the
+Fe tip above no atom detaches; `tests/synthetic.py` checks the counts on
+a block that loses atoms.
 
 ### species.py: molecules
 
 ```bash
 python species.py highT.lammpstrj --track molecules --groups Fe_water.groups.lmp \
-    --cutoff Fe-Fe:2.7 --dt 0.0005 -o water
+    --cutoff Fe-Fe:2.7 --dt 0.25 --units real -o water
 ```
 
 Molecules = clusters of tracked atoms connected by bonds, counted by
@@ -279,9 +288,9 @@ formula; "(bound)" when one of their atoms is bonded to an untracked atom
 
 ![species](reference/water.png)
 
-Local check of `07_reactive` (ReaxFF, `units real`, so `--dt 0.25` fs and
-`--units real` there): 191 H₂O and 10 O₂, some water bound to Fe during
-the run. The free/bound split depends on the Fe-O cutoff (2.48 Å from the
+Local check of `07_reactive` (ReaxFF in `units real`, timestep 0.25 fs;
+for the template in `metal` units: `--dt 0.0005`): 191 H₂O and 10 O₂, some
+water bound to Fe during the run. The free/bound split depends on the Fe-O cutoff (2.48 Å from the
 covalent radii); `structure.py` flags it as cutting the Fe-O peak of this
 system: set it from the RDF.
 
@@ -302,11 +311,11 @@ scripts); the choices that change numbers:
 - `structure.py` (`rdf_check.py`): the first-minimum estimate is widened
   to a valley and the cutoff is flagged when outside it.
 - `detached.py` (`ovito_cho.py`): by default clusters among the followed
-  atoms only; the original clusters all atoms of the selected elements, so
-  an atom held to the body only through atoms outside it (e.g. an O of a
-  water molecule bonded to both) counts as attached there and as detached
-  here. `--connect C+H+O --alternative` reproduces the original.
+  atoms only; the original clusters all C, H, O atoms: `--connect C+H+O
+  --alternative` (its cutoffs) reproduces it.
 - `bonds.py` (`compute_bonds.py`): sides also by ids or groups; any bridge
   element. Same counts with sides by element.
 - `friction.py`, `thermo.py` (`friction_vs_load.py`): same blocking and
   `tau_int`, read from the logs directly.
+- `cutoffs.py`: the table of `compute_bonds.py`; `--alternative` gives the
+  values of `ovito_cho.py` for C-C, C-H, C-O, H-H.

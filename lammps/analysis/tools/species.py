@@ -71,7 +71,9 @@ def main():
                          for c, fm in O.formulas(lab, el).items())
         row = {"frame": k, "step": steps[k], "time": tk, "stage": sk, "molecules": int(lab.max() + 1)}
         row.update(census)
-        for e in sorted(set(el[f]), key=els.index):
+        if not rows and not f.any():
+            sys.exit("no tracked atom in the first frame: check --track")
+        for e in sorted(set(el[f]), key=lambda e: (e not in els, els.index(e) if e in els else 0)):
             row[f"{e} bonded to untracked"] = int(np.count_nonzero(anchored & (el == e)))
         rows.append(row)
     df = pd.DataFrame(rows).fillna(0)

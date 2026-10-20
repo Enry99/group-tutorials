@@ -30,7 +30,7 @@ def add_common_args(parser, last_default=None):
 
 def load(dumps, type_names=None):
     """Pipeline on the explicit file list; returns (pipeline, steps of every
-    OVITO frame, elements present)."""
+    OVITO frame, elements present in the first or the last frame)."""
     from ovito.io import import_file
     files = L.expand(dumps)
     idx = L.index_dump(files, dedup=False)
@@ -49,6 +49,9 @@ def load(dumps, type_names=None):
                 if t.id <= len(type_names):
                     ptypes.type_by_id_(t.id).name = type_names[t.id - 1]
     els = [t.name for t in ptypes.types]
+    if n > 1:                                           # elements that appear later (deposition)
+        els += [t.name for t in pipeline.source.compute(n - 1).particles.particle_types.types
+                if t.name not in els]
     if not all(els):
         raise SystemExit("types without element names: add 'element' to the dump "
                          "(dump_modify element ...) or give --type-names")
@@ -56,9 +59,9 @@ def load(dumps, type_names=None):
 
 
 def window(steps, args):
-    """OVITO frames to analyse (restart duplicates dropped, the later copy
-    kept, as lmp_io.index_dump), with their time and stage."""
-    keep = np.flatnonzero(np.r_[steps[1:] != steps[:-1], True])
+    """OVITO frames to analyse (restart overlaps dropped, the later copy
+    kept, as lmp_io.clean_steps), with their time and stage."""
+    keep = L.clean_steps(steps)
     sel, t = L.window(steps[keep], args.dt, args.tmin, args.tmax, args.last, args.every)
     _, stage = L.stage_time(steps[keep], args.dt or [1.0])
     return keep[sel], t[sel], stage[sel]

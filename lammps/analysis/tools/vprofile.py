@@ -141,7 +141,9 @@ def compute(args):
     idx = L.index_dump(L.expand(args.dumps))
     steps = np.array([s for _, _, s in idx])
     sel, t = L.window(steps, args.dt, args.tmin, args.tmax, args.last)
-    pairs = [(sel[k], sel[k + args.lag]) for k in range(len(sel) - args.lag)]
+    _, stage = L.stage_time(steps, args.dt)
+    pairs = [(sel[k], sel[k + args.lag]) for k in range(len(sel) - args.lag)
+             if stage[sel[k]] == stage[sel[k + args.lag]]]         # not across a reset_timestep
     if not pairs:
         sys.exit("not enough frames in the window for the lag")
     print(f"{len(idx)} frames; window {len(sel)} frames (t = {t[sel[0]]:g}-{t[sel[-1]]:g}), "
@@ -186,7 +188,13 @@ def compute(args):
             zm = lo_z + np.mod(zm - lo_z, lz)
         m = np.ones(len(vx), bool)
         if args.elements:
-            m = np.isin(A["element"].to_numpy()[ia], args.elements)
+            if "element" in A:
+                el = A["element"].to_numpy()
+            elif args.type_names:
+                el = np.array(args.type_names)[A["type"].to_numpy() - 1]
+            else:
+                sys.exit("--elements: no 'element' column in the dump; give --type-names")
+            m = np.isin(el[ia], args.elements)
         dzs.append(np.mean(np.abs(zb - za)[m]))
         b = np.clip(np.floor((zm - lo_z) / args.bin).astype(int), 0, nb - 1)
         cnt = np.bincount(b[m], minlength=nb).astype(float)
@@ -321,6 +329,7 @@ def main():
     parser.add_argument("--bin", type=float, default=0.2, help="A")
     parser.add_argument("--min-samples", type=int, default=50)
     parser.add_argument("--elements", nargs="+", help="only these elements (default all)")
+    parser.add_argument("--type-names", nargs="+", help="element of type 1, 2, ... (no 'element' column)")
     parser.add_argument("--zmin", type=float, help="analysis window in z (A)")
     parser.add_argument("--zmax", type=float)
     parser.add_argument("--overlay", nargs="+", metavar="CSV", help="overlay profiles instead")

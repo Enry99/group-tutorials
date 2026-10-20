@@ -7,13 +7,13 @@ Usage:
     python thermo.py 02_slide.log -c "-f_load[1]" c_temp_int --stats --skip 0.2 --rolling 21
 
 What it does:
-  1. reads the thermo tables of the logs, in the order given (a log of a
-     later stage after the earlier one), minimizations left out
-     (--minimize keeps them); runs of one log continue each other, a
-     reset_timestep or a new log starts a new stage, and the
-     stages are laid end to end on one time axis (the Time column if
-     printed, else Step x timestep of the log; --dt overrides, one value
-     per stage);
+  1. reads the thermo tables of the logs, in the order given,
+     minimizations left out (--minimize keeps them); a reset_timestep
+     starts a new stage, a log that continues a run from a restart joins
+     it (rows repeated after the restart counted once, the later copy
+     kept); stages are laid end to end on one time axis (the Time column
+     if printed, else Step x timestep of the log; --dt, one value per
+     stage, replaces both);
   2. --list prints the columns of every run;
   3. -c: columns or expressions of columns ("-f_load[1]",
      "0.5*(f_hold_bot[1]-f_load[1])"), one panel each vs time, stage
@@ -22,7 +22,8 @@ What it does:
   4. --stats: for every column and stage, mean, standard deviation, error
      of the mean by blocking (Flyvbjerg-Petersen), integrated correlation
      time and number of independent samples, after leaving out the first
-     --skip fraction of the stage (run-in) or before --tmin.
+     --skip fraction of the stage (run-in) or before --tmin; also in
+     <out>_stats.csv.
 Needs numpy, pandas, matplotlib.
 """
 import argparse
@@ -31,17 +32,15 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lmp_io as L  # noqa: E402
+import pandas as pd  # noqa: E402
 
 COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 
 
-def stats_line(name, stage, y):
-    sem = L.blocking_sem(y)
+def stats_row(name, stage, y):
     tau = L.tau_int(y)
-    neff = len(y) / tau
-    flag = "   <- few independent samples" if neff < 20 else ""
-    return (f"{name:>22} {stage:>5} {len(y):>6} {y.mean():>13.5g} {y.std(ddof=1):>11.4g} "
-            f"{sem:>11.4g} {tau:>8.1f} {neff:>7.1f}{flag}")
+    return {"column": name, "stage": stage, "rows": len(y), "mean": y.mean(),
+            "std": y.std(ddof=1), "sem": L.blocking_sem(y), "tau_int": tau, "N_eff": len(y) / tau}
 
 
 def main():
@@ -60,7 +59,7 @@ def main():
     parser.add_argument("--skip", type=float, default=0.2,
                         help="fraction of each stage left out of --stats (default 0.2)")
     parser.add_argument("--rolling", type=int, help="rows of the centred rolling mean")
-    parser.add_argument("--units", default="metal", help="for the time label (metal: ps)")
+    parser.add_argument("--units", help="for the time label (default: from the log)")
     parser.add_argument("-o", "--output", default="thermo")
     args = L.parse_args(parser)
 
@@ -84,7 +83,7 @@ def main():
         d = d[d["time"] <= args.tmax]
     if d.empty:
         sys.exit("no rows left after --stage/--tmin/--tmax")
-    tu = L.TIME_UNIT.get(args.units, "time units")
+    tu = L.TIME_UNIT.get(L.log_units(runs, args.units), "time units")
     print(f"{len(d)} rows, {d['stage'].nunique()} stage(s), time {d['time'].iloc[0]:g}-"
           f"{d['time'].iloc[-1]:g} {tu}")
     if not args.columns:
@@ -100,6 +99,7 @@ def main():
     if args.stats:
         print(f"\n{'column':>22} {'stage':>5} {'rows':>6} {'mean':>13} {'std':>11} "
               f"{'sem (block)':>11} {'tau_int':>8} {'N_eff':>7}")
+        table = []
         for c, v in values.items():
             for s in sorted(out["stage"].unique()):
                 m = (out["stage"] == s).to_numpy()
@@ -109,9 +109,14 @@ def main():
                 if len(y) < 16:
                     print(f"{c:>22} {s:>5}  only {len(y)} rows: skipped")
                     continue
-                print(stats_line(c, s, y))
+                r = stats_row(c, s, y)
+                table.append(r)
+                print(f"{c:>22} {s:>5} {r['rows']:>6} {r['mean']:>13.5g} {r['std']:>11.4g} "
+                      f"{r['sem']:>11.4g} {r['tau_int']:>8.1f} {r['N_eff']:>7.1f}"
+                      + ("   <- few independent samples" if r["N_eff"] < 20 else ""))
         print("sem: error of the mean from blocking; tau_int in rows; "
               "N_eff = rows / tau_int (below 20: run longer)")
+        pd.DataFrame(table).to_csv(args.output + "_stats.csv", index=False)
 
     import matplotlib
     matplotlib.use("Agg")
@@ -134,7 +139,7 @@ def main():
     axes[-1, 0].set_xlabel(f"time ({tu})")
     fig.tight_layout()
     fig.savefig(args.output + ".png", dpi=200)
-    print(f"-> {args.output}.csv, {args.output}.png")
+    print(f"-> {args.output}.csv, {args.output}.png" + (f", {args.output}_stats.csv" if args.stats else ""))
 
 
 if __name__ == "__main__":

@@ -5,19 +5,23 @@ sliding runs, with error bars from blocking.
 Usage:
     python friction.py 02_slide.log --force "-f_load[1]" --data Fe_water_Fe.data
     python friction.py 02_slide.log --force "0.5*(f_hold_bot[1]-f_load[1])" \\
-        --normal "f_load[3]" --data Fe_water_Fe.data --tmin 5
+        --normal "f_load[3]" --data Fe_water_Fe.data --skip-time 5
+    python friction.py 02_slide.log,02_slide_cont.log --force "-f_load[1]" --data Fe_water_Fe.data
     python friction.py load_*/02_slide.log --force "-f_load[1]" --normal "f_load[3]" \\
         --data load_*/Fe_water_Fe.data --labels 1GPa 2GPa 5GPa -o friction_vs_load
 
-What it does, for each log:
-  1. F, the friction force (eV/A): an expression of thermo columns, the
-     force from the rest of the system on the driven part (05_sliding:
+What it does, for each run (one log, or the logs of a run split over
+several jobs joined by commas: a.log,b.log; overlaps from restarts are
+dropped as in thermo.py):
+  1. F, the friction force: an expression of thermo columns, the force
+     from the rest of the system on the driven part (05_sliding:
      -f_load[1] on layer_top, f_hold_bot[1] on layer_bot, or their mean),
-     signed so that friction is positive; the last stage of the log (the
-     sliding), without the first --skip fraction or the rows before --tmin
-     (acceleration, run-in);
-  2. friction stress tau = F / A (GPa), A = lx * ly from --area or from the
-     data file (--data: one for all logs, or one per log);
+     signed so that friction is positive; the last stage of the run (the
+     sliding), without the first --skip fraction or the first --skip-time
+     of the stage (acceleration, run-in);
+  2. friction stress tau = F / A in GPa (units metal or real, from the log
+     or --units), A = lx * ly from --area or from the data file (--data:
+     one for all runs, or one per run);
   3. mean, error of the mean by blocking, integrated correlation time and
      independent samples (as friction_vs_load.py, E. Pedretti); with
      --normal, the normal stress P = N / A and mu = tau / P;
@@ -54,21 +58,24 @@ def data_area(path):
     return lim["xlo"] * lim["ylo"]
 
 
-def series(log, args):
-    runs = L.read_log(log)
+def series(files, args):
+    runs = [r for f in files for r in L.read_log(f)]
     if not runs:
-        raise SystemExit(f"{log}: no thermo output")
+        raise SystemExit(f"{','.join(files)}: no thermo output")
+    units = L.log_units(runs, args.units)
+    if units not in L.STRESS_TO_GPA:
+        raise SystemExit(f"units {units}: only metal and real are converted")
     d = L.join_runs(runs, args.dt)
     stage = d["stage"].max() if args.stage is None else args.stage
     d = d[d["stage"] == stage]
     d = d.assign(time=d["time"] - d["time"].iloc[0])          # from the start of the stage
-    if args.tmin is not None:
-        d = d[d["time"] >= args.tmin]
+    if args.skip_time is not None:
+        d = d[d["time"] >= args.skip_time]
     else:
         d = d.iloc[int(args.skip * len(d)):]
     if len(d) < 32:
-        raise SystemExit(f"{log}: only {len(d)} rows left for the averages")
-    return d
+        raise SystemExit(f"{','.join(files)}: only {len(d)} rows left for the averages")
+    return d, L.STRESS_TO_GPA[units]
 
 
 def stats(y):
@@ -85,36 +92,39 @@ def main():
     area.add_argument("--area", type=float, help="A^2")
     area.add_argument("--data", nargs="+", help="data file(s) for lx * ly")
     parser.add_argument("--stage", type=int, help="stage of each log (default: the last)")
-    parser.add_argument("--tmin", type=float, help="time from the start of the stage")
+    parser.add_argument("--skip-time", type=float, help="time left out at the start of the stage")
     parser.add_argument("--skip", type=float, default=0.2,
-                        help="fraction of the stage left out (default 0.2; not with --tmin)")
+                        help="fraction of the stage left out (default 0.2; not with --skip-time)")
     parser.add_argument("--dt", nargs="+", type=float, help="timestep per stage, if not in the log")
     parser.add_argument("--labels", nargs="+")
     parser.add_argument("--x", nargs="+", type=float, help="abscissa of the plot (default: P)")
     parser.add_argument("--xlabel", default="normal stress P (GPa)")
+    parser.add_argument("--units", help="metal or real (default: from the log)")
     parser.add_argument("-o", "--output", default="friction")
     args = L.parse_args(parser)
 
-    logs = L.expand(args.logs)
+    logs = []                                            # one list of files per run
+    for a in args.logs:
+        logs += [L.expand(a.split(","))] if "," in a else [[f] for f in L.expand(a)]
     datas = L.expand(args.data) if args.data else None
     if datas and len(datas) not in (1, len(logs)):
-        sys.exit(f"{len(datas)} data files for {len(logs)} logs: give one, or one per log")
-    labels = args.labels or [os.path.basename(os.path.dirname(os.path.abspath(f))) for f in logs]
+        sys.exit(f"{len(datas)} data files for {len(logs)} runs: give one, or one per run")
+    labels = args.labels or [os.path.basename(os.path.dirname(os.path.abspath(f[0]))) for f in logs]
     if len(labels) != len(logs):
-        sys.exit("--labels: one per log")
+        sys.exit("--labels: one per run")
 
     rows, curves = [], []
     for k, log in enumerate(logs):
-        d = series(log, args)
+        d, conv = series(log, args)
         a = args.area if args.area else data_area(datas[min(k, len(datas) - 1)])
-        tau = L.evaluate(args.force, d) / a * L.EV_PER_A3_TO_GPA
+        tau = L.evaluate(args.force, d) / a * conv
         s = stats(tau)
-        row = {"label": labels[k], "log": log, "area_A2": a, "rows": s["n"],
+        row = {"label": labels[k], "log": ",".join(log), "area_A2": a, "rows": s["n"],
                "t_from": d["time"].iloc[0], "t_to": d["time"].iloc[-1],
                "tau_GPa": s["mean"], "tau_sem": s["sem"], "tau_int_rows": s["tau"],
                "N_eff": s["n"] / s["tau"]}
         if args.normal:
-            p = stats(L.evaluate(args.normal, d) / a * L.EV_PER_A3_TO_GPA)
+            p = stats(L.evaluate(args.normal, d) / a * conv)
             mu = s["mean"] / p["mean"]
             row.update(P_GPa=p["mean"], P_sem=p["sem"], mu=mu,
                        mu_err=abs(mu) * np.hypot(s["sem"] / s["mean"], p["sem"] / p["mean"]))

@@ -15,14 +15,14 @@ What it does (based on ovito_cho.py / detached_atoms.py, E. Pedretti):
   2. bonds with the pairwise cutoffs of cutoffs.py (--cutoff A-B:R,
      --alternative to reproduce results obtained with ovito_cho.py; check
      the cutoffs first with structure.py); clusters = atoms connected by
-     bonds among the tracked atoms only (a bond to an untracked atom does
-     not hold an atom to the body); --connect SPEC: the atoms of SPEC also
+     bonds among the followed atoms only (a bond to another atom does not
+     hold an atom to the body); --connect SPEC: the atoms of SPEC also
      connect clusters (--connect C+H+O as ovito_cho.py, which clusters all
      C, H, O atoms: an asperity atom held only through an adsorbed water O
      then counts as attached);
-  3. reference frame = the first of the window: its clusters are printed
-     (check that the largest is the body); only the atoms of the largest
-     one are followed (--all-tracked: all tracked atoms);
+  3. reference frame = the first of the window: its clusters are printed;
+     the body is the one with most tracked atoms (check it), and only its
+     tracked atoms are followed (--all-tracked: all tracked atoms);
   4. per frame: detached = followed atoms outside the cluster that holds
      most of them (the body), per element; fragments = clusters with
      detached atoms; at the last frame, the fragments by formula
@@ -73,18 +73,22 @@ def main():
     el, ids = O.elements_of(data), O.ids_of_frame(data)
     i, j, _ = O.bond_list(data)
     m = track(el, ids)
-    lab = O.clusters(len(el), i, j, m)
+    if not m.any():
+        sys.exit("no tracked atom in the first frame: check --track")
+    lab = O.clusters(len(el), i, j, m | connect(el, ids) if args.connect else m)
+    body = np.bincount(lab[m]).argmax()                   # the cluster with most tracked atoms
     form = O.formulas(lab, el)
     nclu = lab.max() + 1
     print(f"\nreference frame (step {steps[frames[0]]}): {m.sum()} tracked atoms in {nclu} cluster(s)")
     for c in range(min(nclu, 5)):
-        print(f"  cluster {c + 1}: {np.count_nonzero(lab == c):>7} atoms   {form[c]}")
+        print(f"  cluster {c + 1}: {np.count_nonzero(lab == c):>7} atoms   {form[c]}"
+              + ("   <- body" if c == body else ""))
     if nclu > 5:
         print(f"  ... {nclu - 5} more")
-    follow = ids[m] if args.all_tracked else ids[lab == 0]
-    tracked_els = sorted(set(el[np.isin(ids, follow)]), key=els.index)
-    print(f"-> following {len(follow)} atoms ({'all tracked' if args.all_tracked else 'cluster 1'}): "
-          "check that cluster 1 is the body\n")
+    follow = ids[m] if args.all_tracked else ids[(lab == body) & m]
+    tracked_els = sorted(set(el[np.isin(ids, follow)]), key=lambda e: (e not in els, els.index(e) if e in els else 0))
+    print(f"-> following {len(follow)} atoms ({'all tracked' if args.all_tracked else 'of the body'}): "
+          "check that the body is the one you mean\n")
 
     rows = []
     for k, tk, sk in zip(frames, t, stage):

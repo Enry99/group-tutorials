@@ -2,28 +2,33 @@
 """Checks of the analysis tools on synthetic data with known answers.
 
 Usage:
-    python synthetic.py                # writes and analyses in ./synthetic_check
-    python synthetic.py --dir /tmp/x
+    python synthetic.py                # in a new temporary folder (printed at the end)
+    python synthetic.py --dir checks
 
 Run it after installing the tools in a new environment or after an OVITO
 update. It writes the inputs, runs every tool as from the command line and
 prints expected vs obtained, PASS or FAIL. The OVITO tools are skipped if
-ovito is not installed. Takes about a minute.
+ovito is not installed. Takes under a minute.
 
 Cases:
   friction   three sliding logs, tau = 0.1 P (P = 1, 2, 5 GPa) plus
              correlated noise of known integrated correlation time (19 rows;
-             the estimate scatters by about 35 % with ~170 independent samples)
+             the estimate scatters by about 35 % with ~170 independent
+             samples); a log in units real
+  restarts   a run continued from a restart written before the end of the
+             first job, then a reset_timestep 0 (logs and dumps)
   vprofile   tanh profile (z0 = 20 A, w = 1.5 A: w10-90 = 2.20 w = 3.30 A)
              and linear profile between z = 10 and 30 A (Couette: rate
              0.25 x 10^10 s^-1, w10-90 = 0.80 h = 16 A)
-  zprofile   atoms uniform in 10 < z < 30 A: number density N / (lx ly 20)
+  zprofile   atoms uniform in 10 < z < 30 A: number density N / (lx ly 20);
+             an element present in half of the frames
   structure  diamond: 4 neighbours, C-C-C 109.47 deg
   bonds      C / Si+N sides with O bridges, counted by hand
   detached   a diamond block that loses an atom pair and an atom, then
              gets the atom back; an atom held to the block only through
              an O, with and without --connect
-  species    two H2O, an OH bonded to an Fe atom, a lone H
+  species    two H2O, an OH bonded to an Fe atom, a lone H; an element that
+             appears only in the last frame
 """
 import argparse
 import importlib.util
@@ -31,6 +36,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -92,6 +98,39 @@ def friction(rng):
         check("friction", f"tau at {P} GPa (GPa)", 0.1 * P, r["tau_GPa"], 3 * r["tau_sem"])
     check("friction", "mu at 5 GPa", 0.1, d["mu"].iloc[-1], 3 * d["mu_err"].iloc[-1])
     check("friction", "tau_int (rows, mean of 3)", 19, d["tau_int_rows"].mean(), 8)
+    # units real: forces in kcal/mol/A, tau = F/A x 6.9477 GPa
+    with open("real.log", "w") as f:
+        f.write("units real\ntimestep 1.0\nrun 4000\n   Step Time f_load[1]\n")
+        f.write("".join(f"{k} {k:.1f} {-0.5 * area / 6.9477 * (1 + 0.01 * np.sin(k)):.8f}\n"
+                        for k in range(n)))
+        f.write("Loop time of 1 on 1 procs for 4000 steps with 100 atoms\n")
+    run("friction.py", "real.log", "--force", "-f_load[1]", "--area", area, "-o", "friction_real")
+    check("friction", "tau, units real (GPa)", 0.5, pd.read_csv("friction_real.csv")["tau_GPa"][0], 0.001)
+
+
+def restarts():
+    """A run continued from a restart written before the end of the first
+    job (steps 1000-1500 written twice), then a reset_timestep 0."""
+    def log(fn, steps):
+        with open(fn, "w") as f:
+            f.write("units metal\ntimestep 0.001\nrun 1\n   Step Time Temp\n")
+            f.write("".join(f"{s} {s * 0.001:.3f} {300 + s / 100:.2f}\n" for s in steps))
+            f.write("Loop time of 1 on 1 procs\n")
+    log("a.log", range(0, 1501, 100))
+    log("b.log", range(1000, 2001, 100))
+    log("c.log", range(0, 501, 100))
+    run("thermo.py", "a.log", "b.log", "c.log", "-c", "Temp", "-o", "restarts")
+    d = pd.read_csv("restarts.csv")
+    check("restarts", "log rows (21 + 6)", 27, len(d), 0)
+    check("restarts", "end of stage 0 (ps)", 2.0, d[d["stage"] == 0]["time"].max(), 1e-9)
+    check("restarts", "end of stage 1 (ps)", 2.5, d["time"].max(), 1e-9)
+    pos = np.zeros((1, 3))
+    write_dump("ra.lammpstrj", [(s, pos) for s in range(0, 1501, 500)], [(0, 10)] * 3)
+    write_dump("rb.lammpstrj", [(s, pos) for s in range(1000, 2001, 500)], [(0, 10)] * 3)
+    sys.path.insert(0, TOOLS)
+    import lmp_io as L
+    idx = L.index_dump(["ra.lammpstrj", "rb.lammpstrj"])
+    check("restarts", "dump frames (0-2000 by 500)", 5, len(idx), 0)
 
 
 # ---------------------------------------------------------------- vprofile
@@ -124,6 +163,14 @@ def zprofile(rng):
               for k in range(10)]
     write_dump("slab.lammpstrj", frames, [(0, 20), (0, 20), (0, 40)])
     run("zprofile.py", "slab.lammpstrj", "--bin", 1.0, "-o", "zp")
+    # an element present in half of the frames counts half
+    el = ["C"] * 4000 + ["H"] * 4000
+    write_dump("half.lammpstrj", [(k, frames[k][1]) if k % 2 else (k, frames[k][1][:4000])
+                                  for k in range(4)], [(0, 20), (0, 20), (0, 40)], el)
+    run("zprofile.py", "half.lammpstrj", "--bin", 1.0, "-o", "zp_half")
+    h = pd.read_csv("zp_half.csv")
+    check("zprofile", "H in 2 of 4 frames (A^-3)", 0.5 * 4000 / 8000,
+          h[(h["z"] > 12) & (h["z"] < 28)]["H (A^-3)"].mean(), 0.02)
     d = pd.read_csv("zp.csv")
     mid = d[(d["z"] > 12) & (d["z"] < 28)].iloc[:, 1]
     check("zprofile", "density 12-28 A (A^-3)", n / (20 * 20 * 20), mid.mean(), 0.02 * n / 8000)
@@ -207,6 +254,11 @@ def species():
     p = np.array([a[1:] for a in atoms], float)
     write_dump("water.lammpstrj", [(0, p), (10, p)], [(0, 20)] * 3, el)
     run("species.py", "water.lammpstrj", "--track", "H+O", "-o", "water")
+    # H appears only in the last frame (deposition): no crash, counted
+    q = np.array([[3, 10, 3], [3, 10, 5.0], [3, 10, 5.97], [12, 12, 12]])
+    write_dump("late.lammpstrj", [(0, q[:2]), (10, q)], [(0, 20)] * 3, ["Fe", "O", "H", "H"])
+    run("species.py", "late.lammpstrj", "--track", "H+O", "-o", "late")
+    check("species", "lone H, element added later", 1, pd.read_csv("late.csv").iloc[-1].get("H", -1), 0)
     d = pd.read_csv("water.csv").iloc[-1]
     for col, exp in (("H2O", 2), ("HO (bound)", 1), ("H", 1), ("O bonded to untracked", 1)):
         check("species", col, exp, d.get(col, -1), 0)
@@ -214,12 +266,14 @@ def species():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dir", default="synthetic_check")
+    ap.add_argument("--dir", help="working folder (default: a new temporary folder)")
     a = ap.parse_args()
-    os.makedirs(a.dir, exist_ok=True)
-    os.chdir(a.dir)
+    if a.dir:
+        os.makedirs(a.dir, exist_ok=True)
+    os.chdir(a.dir or tempfile.mkdtemp(prefix="synthetic_check_"))
     rng = np.random.default_rng(7)
     friction(rng)
+    restarts()
     vprofile(rng)
     zprofile(rng)
     if importlib.util.find_spec("ovito") is None:

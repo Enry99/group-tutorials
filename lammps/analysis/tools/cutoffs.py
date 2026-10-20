@@ -9,7 +9,7 @@ ALTERNATIVE: the values of ovito_cho.py (detached atoms) where they
 differ; they changed some earlier counts.
 Other pairs: 1.25 x (sum of the covalent radii of ASE), printed when
 used. Every cutoff must sit in the valley after the first peak of the
-partial RDF of your system: check with structure.py --rdf.
+partial RDF of your system: check with structure.py.
 """
 from ase.data import atomic_numbers, covalent_radii
 

@@ -46,7 +46,6 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cutoffs as C  # noqa: E402
-import lmp_io as L  # noqa: E402
 import ovito_io as O  # noqa: E402
 
 COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
@@ -113,8 +112,8 @@ def main():
     parser.add_argument("--rbins", type=int, default=250)
     parser.add_argument("--zmin", type=float, help="centres with z above (A)")
     parser.add_argument("--zmax", type=float)
-    parser.add_argument("--centres", help="centre atoms: ids 'lo:hi', 'a,b', groups 'g1+g2', "
-                        "or elements 'C+H'")
+    parser.add_argument("--centres", help="centre atoms: elements 'C+H', ids 'lo:hi', 'a,b', "
+                        "groups 'g1+g2' (mixed with '+')")
     parser.add_argument("--groups", help="groups file for --centres")
     parser.add_argument("--angles", nargs="+", default=[], metavar="A-B-C")
     parser.add_argument("--angle-sigma", type=float, default=1.0, help="deg, plot only")
@@ -129,6 +128,7 @@ def main():
         if len(tr) != 3 or not set(tr) <= set(els):
             sys.exit(f"--angles {'-'.join(tr)}: three elements of {els}")
 
+    sel_centres = O.selector(args.centres, els, args.groups)[0] if args.centres else None
     from ovito.modifiers import CoordinationAnalysisModifier
     pipeline.modifiers.append(CoordinationAnalysisModifier(
         cutoff=args.rmax, number_of_bins=args.rbins, partial=True))
@@ -150,10 +150,9 @@ def main():
         if args.zmax is not None:
             centres &= z <= args.zmax
         if args.centres:
-            if set(args.centres.split("+")) <= set(els):
-                centres &= np.isin(el, args.centres.split("+"))
-            else:
-                centres &= np.isin(O.ids_of_frame(data), L.ids_of(args.centres, args.groups))
+            centres &= sel_centres(el, O.ids_of_frame(data))
+        if not centres.any():
+            sys.exit(f"no centre atom at step {steps[k]}: check --zmin/--zmax/--centres")
         i, j, vec = O.bond_list(data)
         for (a, b), _ in table.items():
             n_bonds[(a, b)] = n_bonds.get((a, b), 0) + np.count_nonzero(

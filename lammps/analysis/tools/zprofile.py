@@ -77,7 +77,7 @@ def main():
             sys.exit("--by-group needs --groups FILE")
         group_ids = {g: L.ids_of(g, args.groups) for g in args.by_group}
 
-    counts, areas, zgrid = {}, [], None
+    counts, ncounts, areas, zgrid = {}, {}, [], None
     for k in sel:
         fn, pos, _ = idx[k]
         f = L.read_frame(fn, pos)
@@ -117,24 +117,29 @@ def main():
                 w = None
             c = np.bincount(ib[m], weights=w, minlength=len(zgrid))
             counts.setdefault(name, []).append(c / (areas[-1] * args.bin))
+            if args.avechunk:                               # number density, also with --mass
+                nc = np.bincount(ib[m], minlength=len(zgrid))
+                ncounts.setdefault(name, []).append(nc / (areas[-1] * args.bin))
 
     unit = "g/cm^3" if args.mass else "A^-3"
     conv = AMU_A3_TO_G_CM3 if args.mass else 1.0
-    prof = {name: np.mean(c, axis=0) * conv for name, c in counts.items()}
+    prof = {name: np.sum(c, axis=0) / len(sel) * conv   # frames without the element count as 0
+            for name, c in counts.items()}
     out = pd.DataFrame({"z": zgrid, **{f"{n} ({unit})": p for n, p in prof.items()}})
     out.to_csv(args.output + ".csv", index=False)
     for n, p in prof.items():
         print(f"  {n:>12}: max {p.max():.4g} {unit}" + ("   <- empty" if p.max() == 0 else ""))
     if args.avechunk:
-        for n, c in counts.items():
-            mean_n = np.mean(c, axis=0) * np.mean(areas) * args.bin
+        for n, c in ncounts.items():
+            dens = np.sum(c, axis=0) / len(sel)
+            mean_n = dens * np.mean(areas) * args.bin
             with open(f"dens_profile_{n}", "w") as fh:
                 fh.write(f"# Chunk-averaged data for {n} (zprofile.py)\n")
                 fh.write("# Timestep Number-of-chunks Total-count\n")
                 fh.write("# Chunk Coord1 Ncount density/number\n")
                 fh.write(f"{steps[sel[-1]]} {len(zgrid)} {mean_n.sum():g}\n")
                 for j in range(len(zgrid)):
-                    fh.write(f"  {j + 1} {zgrid[j]:g} {mean_n[j]:g} {np.mean(c, axis=0)[j]:g}\n")
+                    fh.write(f"  {j + 1} {zgrid[j]:g} {mean_n[j]:g} {dens[j]:g}\n")
 
     import matplotlib
     matplotlib.use("Agg")
