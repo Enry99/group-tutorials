@@ -21,17 +21,17 @@ scripts, see `tools/README.md`). The orthorhombic supercell script is in
 
 ## Setup
 
-The scripts need ase, numpy and, for slabs and interfaces, pymatgen; the
-lubricant needs packmol. In the Python environment of
-`../leonardo/README.md`:
+The scripts need ase, numpy and, for slabs and interfaces, pymatgen: all
+in the shared Python environment of `../leonardo/README.md`. The
+lubricant needs packmol; on Leonardo use the group build:
 
 ```bash
-python -c "import pymatgen.core"      # error? then: pip install pymatgen
+export PATH=/leonardo/pub/userexternal/epedrett/software/packmol-21.2.1:$PATH
 ```
 
-packmol: build it once from https://github.com/m3g/packmol (`make`, needs
-gfortran) and put the executable on your `PATH`, or pass its path with
-`--packmol`.
+(add it to your `~/.bashrc`), or pass the executable with `--packmol`.
+Elsewhere, build it from https://github.com/m3g/packmol (`make`, needs
+gfortran).
 
 All the examples run in seconds on a login node. Commands run from the
 example folder; `-h` prints the usage of every script.
