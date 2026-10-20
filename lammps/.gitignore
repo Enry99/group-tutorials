@@ -12,3 +12,4 @@ highT_min.data
 npt_averages.txt
 stress_strain.txt
 !**/reference/*
+!**/reference/**

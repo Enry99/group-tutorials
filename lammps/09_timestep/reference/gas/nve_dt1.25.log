@@ -1,0 +1,304 @@
+LAMMPS (22 Jul 2025 - Update 4)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# Timestep test, step 2: NVE from equil.restart with timestep dt. Run it
+# for several dt (job_scan.sh) and compare the logs with check_dt.py.
+# Usage: sbatch job_scan.sh nve.in        (one job per dt)
+#        or: lmp ... -in nve.in -var dt 1.0
+# Needs: equil.restart (equil.in)
+#
+# What is printed (thermo, every t_out):
+#   etotal, pe, ke       conserved in NVE: drift and fluctuations vs dt
+#   c_ts_T               temperature of the atoms that move
+#   c_ts_TH, c_ts_TX     temperature of H and of the other atoms: with a too
+#                        large dt they drift apart, H usually hotter
+#   v_dxH                largest H displacement in one step (A)
+#   c_ts_nfree, v_nH2    free H atoms and H2 molecules (spurious dissociation)
+# and at the end the line "TS_RESULT ..." (drift, mean temperatures).
+# rdf_<tag>.txt: H-X and H-H radial distribution, averaged over the run.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "C H"    # element of each atom type, in type order
+variable  tH        equal  2      # atom type of H
+variable  start     string equil.restart
+variable  fixed     string ts_none        # as in equil.in
+variable  dt        index  0.5            # fs (index: set it with -var dt 1.0)
+variable  mH        index  0              # > 0: mass of the H type, e.g. 2.014 (deuterium); 0: as it is
+variable  tag       index  nve_dt${dt}    # name of the output files
+variable  tag       index  nve_dt1.25    
+variable  t_run     equal  5              # ps
+variable  t_out     equal  0.015          # ps between thermo lines: whole steps for dt 0.25-1.5 fs
+variable  rc_HX     equal  2.0            # A: H with no other atom within rc_HX -> free H or H2
+variable  rc_HH     equal  1.0            # A: free H with one H within rc_HH -> H2
+variable  neigh_every equal 1             # as in your production runs (neigh_modify every N)
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+read_restart    ${start}
+read_restart    equil.restart
+Reading restart file ...
+  restart file = 22 Jul 2025, LAMMPS = 22 Jul 2025
+  restoring atom style atomic from restart
+  orthogonal box = (0 0 0) to (30 30 30)
+  1 by 1 by 1 MPI processor grid
+  pair style rebo stores no restart info
+  305 atoms
+  read_restart CPU = 0.000 seconds
+reset_timestep  0
+pair_style      rebo
+pair_coeff      * * CH.rebo ${elements}
+pair_coeff      * * CH.rebo C H
+Reading rebo potential file CH.rebo with DATE: 2018-7-3
+neigh_modify    every ${neigh_every} delay 0 check yes
+neigh_modify    every 1 delay 0 check yes
+
+# ---------- groups of the test ----------
+group           ts_none   empty
+0 atoms in group ts_none
+group           ts_fix    union ${fixed}
+group           ts_fix    union ts_none
+0 atoms in group ts_fix
+group           ts_md     subtract all ts_fix
+305 atoms in group ts_md
+group           ts_Hall   type ${tH}
+group           ts_Hall   type 2
+260 atoms in group ts_Hall
+# new H mass: velocities scaled by sqrt(m_old/m_new), so the kinetic energy (T) is kept
+if "${mH} > 0" then   "variable ts_f equal $(sqrt(mass(ts_Hall)/count(ts_Hall)/v_mH))"   "variable ts_vx atom vx*v_ts_f" "variable ts_vy atom vy*v_ts_f" "variable ts_vz atom vz*v_ts_f"   "velocity ts_Hall set v_ts_vx v_ts_vy v_ts_vz units box"   "mass ${tH} ${mH}"
+group           ts_Xall   subtract all ts_Hall
+45 atoms in group ts_Xall
+group           ts_H      intersect ts_Hall ts_md
+260 atoms in group ts_H
+group           ts_X      subtract ts_md ts_H
+45 atoms in group ts_X
+variable        nmd equal count(ts_md)
+print           "TS_TEST dt ${dt} fs, mH ${mH}, tag ${tag}, atoms that move ${nmd}, H $(count(ts_H))"
+TS_TEST dt 1.25 fs, mH 0, tag nve_dt1.25, atoms that move 305, H 260
+
+# ---------- NVE ----------
+timestep        $(v_dt*0.001)             # ps
+timestep        0.001250000000000000026             
+fix             ts_hold   ts_fix setforce 0.0 0.0 0.0
+fix             ts_nve    ts_md  nve
+
+# ---------- what to check ----------
+compute         ts_T  ts_md temp
+compute         ts_TH ts_H  temp
+compute_modify  ts_TH extra/dof 0         # subgroup: no momentum constraint
+compute         ts_TX ts_X  temp
+compute_modify  ts_TX extra/dof 0
+variable        ts_v2 atom vx*vx+vy*vy+vz*vz
+compute         ts_v2max ts_H reduce max v_ts_v2
+variable        dxH equal sqrt(c_ts_v2max)*dt
+compute         ts_cnHX ts_H coord/atom cutoff ${rc_HX} group ts_Xall
+compute         ts_cnHX ts_H coord/atom cutoff 2 group ts_Xall
+compute         ts_cnHH ts_H coord/atom cutoff ${rc_HH} group ts_Hall
+compute         ts_cnHH ts_H coord/atom cutoff 1 group ts_Hall
+variable        ts_free atom "c_ts_cnHX==0 && c_ts_cnHH==0"
+variable        ts_inH2 atom "c_ts_cnHX==0 && c_ts_cnHH==1"
+compute         ts_nfree ts_H reduce sum v_ts_free
+compute         ts_nH2   ts_H reduce sum v_ts_inH2
+variable        nH2 equal c_ts_nH2/2
+
+variable        nout equal round(v_t_out/dt)
+variable        nrun equal v_nout*round(v_t_run/v_t_out)   # a multiple of nout
+compute         ts_rdf all rdf 150 ${tH} * ${tH} ${tH} cutoff 3.0
+compute         ts_rdf all rdf 150 2 * ${tH} ${tH} cutoff 3.0
+compute         ts_rdf all rdf 150 2 * 2 ${tH} cutoff 3.0
+compute         ts_rdf all rdf 150 2 * 2 2 cutoff 3.0
+fix             ts_rdf all ave/time ${nout} $(v_nrun/v_nout) ${nrun}                 c_ts_rdf[*] file rdf_${tag}.txt mode vector
+fix             ts_rdf all ave/time 12 $(v_nrun/v_nout) ${nrun}                 c_ts_rdf[*] file rdf_${tag}.txt mode vector
+fix             ts_rdf all ave/time 12 333 ${nrun}                 c_ts_rdf[*] file rdf_${tag}.txt mode vector
+fix             ts_rdf all ave/time 12 333 3996                 c_ts_rdf[*] file rdf_${tag}.txt mode vector
+fix             ts_rdf all ave/time 12 333 3996                 c_ts_rdf[*] file rdf_nve_dt1.25.txt mode vector
+fix             ts_avg all ave/time ${nout} $(v_nrun/v_nout) ${nrun} c_ts_TH c_ts_TX
+fix             ts_avg all ave/time 12 $(v_nrun/v_nout) ${nrun} c_ts_TH c_ts_TX
+fix             ts_avg all ave/time 12 333 ${nrun} c_ts_TH c_ts_TX
+fix             ts_avg all ave/time 12 333 3996 c_ts_TH c_ts_TX
+
+thermo          ${nout}
+thermo          12
+thermo_style    custom step time etotal pe ke c_ts_T c_ts_TH c_ts_TX v_dxH c_ts_nfree v_nH2
+thermo_modify   flush yes
+dump            ts_traj all custom $(round(0.5/dt)) ${tag}.lammpstrj id element xu yu zu
+dump            ts_traj all custom 400 ${tag}.lammpstrj id element xu yu zu
+dump            ts_traj all custom 400 nve_dt1.25.lammpstrj id element xu yu zu
+dump_modify     ts_traj element ${elements} sort id
+dump_modify     ts_traj element C H sort id
+
+run             0
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8
+  ghost atom cutoff = 8
+  binsize = 4, bins = 8 8 8
+  4 neighbor lists, perpetual/occasional/extra = 1 3 0
+  (1) pair rebo, perpetual
+      attributes: full, newton on, ghost
+      pair build: full/bin/ghost
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) compute coord/atom, occasional, copy from (1)
+      attributes: full, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (3) compute coord/atom, occasional, copy from (1)
+      attributes: full, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) compute rdf, occasional
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 4.537 | 4.537 | 4.537 Mbytes
+   Step          Time          TotEng         PotEng         KinEng         c_ts_T        c_ts_TH        c_ts_TX         v_dxH        c_ts_nfree       v_nH2     
+         0   0             -935.43049     -984.25601      48.825518      1242.535       1203.1448      1442.5112      0.15264806     0              40           
+Loop time of 6.89e-07 on 1 procs for 0 steps with 305 atoms
+
+435.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 6.89e-07   |            |       |100.00
+
+Nlocal:            305 ave         305 max         305 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            832 ave         832 max         832 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         7854 ave        7854 max        7854 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 7854
+Ave neighs/atom = 25.75082
+Neighbor list builds = 0
+Dangerous builds = 0
+variable        E0 equal $(etotal)
+variable        E0 equal -935.43048986215740115
+run             ${nrun}
+run             3996
+Per MPI rank memory allocation (min/avg/max) = 7.202 | 7.202 | 7.202 Mbytes
+   Step          Time          TotEng         PotEng         KinEng         c_ts_T        c_ts_TH        c_ts_TX         v_dxH        c_ts_nfree       v_nH2     
+         0   0             -935.43049     -984.25601      48.825518      1242.535       1203.1448      1442.5112      0.15264806     0              40           
+        12   0.015         -935.21479     -982.44833      47.233533      1202.0214      1188.8385      1251.4778      0.13397392     0              40           
+        24   0.03          -934.65236     -980.31816      45.665805      1162.1251      1165.0187      1119.5818      0.13925455     2              39           
+        36   0.045         -934.45176     -980.84028      46.388522      1180.5172      1140.0665      1387.9985      0.14019827     0              40           
+        48   0.06          -933.83351     -982.37202      48.538507      1235.231       1237.0562      1197.2358      0.16278568     0              40           
+        60   0.075         -933.30355     -984.30267      50.999122      1297.8499      1301.729       1246.5962      0.1795261      0              40           
+        72   0.09          -929.61163     -978.81115      49.199516      1252.0527      1235.3802      1320.5595      0.22234141     2              39           
+        84   0.105         -778.11384     -975.14556      197.03172      5014.157       5623.9499      1379.4836      1.543441       2              39           
+        96   0.12          -776.88733     -974.86191      197.97458      5038.1513      5690.6709      1156.0797      1.5541944      4              38           
+       108   0.135         -388.5462      -968.43247      579.88627      14757.222      16367.185      5127.2749      3.603817       3              39           
+       120   0.15          -387.53634     -964.61675      577.0804       14685.817      16651.147      3004.2251      3.603817       3              39           
+       132   0.165         -405.23655     -967.47718      562.24063      14308.167      15854.867      5053.7163      3.5327663      3              39           
+       144   0.18          -410.00549     -964.71475      554.70926      14116.505      15892.991      3538.6643      3.5056268      3              39           
+       156   0.195         -371.98594     -959.07453      587.08859      14940.51       16813.421      3787.2326      3.5770284      5              38.5         
+       168   0.21          -387.23695     -951.56746      564.33051      14361.351      16337.854      2622.416       3.5508596      5              39           
+       180   0.225         -390.05213     -954.0647       564.01257      14353.26       16265.617      2985.1296      3.5447223      6              39           
+       192   0.24          -373.94241     -951.98321      578.0408       14710.257      16665.172      3088.2985      3.6019098      8              37.5         
+       204   0.255         -361.36449     -950.14829      588.7838       14983.65       17016.502      2905.3138      3.6460488      6              39           
+       216   0.27          -338.94076     -945.74287      606.80211      15442.189      17541.781      2968.0523      3.7253597      6              38.5         
+       228   0.285         -336.00676     -947.16103      611.15427      15552.945      17600.312      3378.0893      3.7293893      7              39           
+       240   0.3           -326.72243     -943.17422      616.45179      15687.758      17920.044      2441.491       3.7683753      7              39           
+       252   0.315         -199.98092     -936.09986      736.11894      18733.105      21396.03       2931.024       3.7389688      7              39           
+       264   0.33          -192.96399     -933.26114      740.29715      18839.434      21457.409      3294.706       3.7699041      7              39           
+       276   0.345         -24.2661       -938.54123      914.27513      23266.909      26605.165      3462.1598      3.7089327      7              39           
+       288   0.36           13.968319     -924.96774      938.93606      23894.492      27223.898      4126.9323      3.7774013      8              39           
+       300   0.375          129.87043     -915.74067      1045.6111      26609.209      30311.85       4624.8532      4.1721195      9              39           
+       312   0.39           155.17809     -900.14879      1055.3269      26856.461      30696.781      4071.1321      4.1234228      12             38           
+       324   0.405          156.59841     -896.33408      1052.9325      26795.527      30642.337      3974.06        4.1234228      14             38           
+       336   0.42           157.94122     -894.82873      1052.77        26791.391      30482.993      4866.7664      4.1234228      15             38           
+       348   0.435          164.13535     -892.73392      1056.8693      26895.712      30771.766      3903.0525      4.2324348      14             38           
+       360   0.45           227.47337     -877.67596      1105.1493      28124.366      32131.333      4348.0164      4.4105663      14             37           
+       372   0.465          173.6626      -889.57716      1063.2398      27057.831      30661.341      5636.269       4.3264078      17             37           
+       384   0.48           182.75422     -852.29242      1035.0466      26340.36       30123.19       3898.6641      4.3368957      19             35.5         
+       396   0.495          151.8467      -845.59655      997.44324      25383.41       28753.536      5347.4958      4.3354753      24             35           
+       408   0.51           166.67989     -849.25543      1015.9353      25854.005      29413.706      4712.3116      4.3608752      26             35           
+       420   0.525          142.38271     -831.28711      973.66983      24778.413      28042.223      5370.2139      4.2196492      29             34           
+       432   0.54           141.29803     -836.7411       978.03913      24889.605      28225.127      5064.602       4.2031683      31             33.5         
+       444   0.555          215.97391     -814.31839      1030.2923      26219.369      29815.749      4857.6289      4.2230034      35             33.5         
+       456   0.57           230.3858      -802.15322      1032.539       26276.544      29814.603      5250.5081      4.258509       37             32           
+       468   0.585          236.71936     -799.50844      1036.2278      26370.418      29867.536      5578.8391      4.2628195      36             34           
+       480   0.6            238.0036      -803.28935      1041.2929      26499.318      30032.219      5498.1279      4.2633673      39             32.5         
+       492   0.615         -185.17431     -776.42585      591.25154      15046.451      16137.164      8410.183       2.3702462      39             33           
+       504   0.63          -177.86845     -779.78046      601.91202      15317.743      16603.647      7547.6822      2.3737751      44             33           
+       516   0.645         -141.31667     -772.27         630.95333      16056.801      17193.951      9129.78        2.3737751      41             34           
+       528   0.66          -58.406448     -757.76507      699.35862      17797.611      19356.196      8396.9491      2.1843448      40             32.5         
+       540   0.675          13.207021     -758.84668      772.0537       19647.59       21282.402      9765.3937      2.2097187      47             31.5         
+       552   0.69           50.031879     -754.65254      804.68442      20477.992      22201.082      10067.296      2.2011933      45             34           
+       564   0.705          115.64333     -736.22214      851.86546      21678.678      23553.196      10366.377      2.2811601      55             29.5         
+       576   0.72           142.79593     -723.80977      866.60569      22053.794      24110.212      9682.1842      2.2811601      51             32           
+       588   0.735          262.14855     -723.36161      985.51016      25079.732      27896.732      8246.3989      2.2811601      51             30.5         
+       600   0.75           363.17254     -705.95447      1069.127       27207.653      30162.811      9528.7899      2.6340794      54             32.5         
+       612   0.765          639.30624     -670.29748      1309.6037      33327.419      37274.326      9782.4582      2.6340794      67             29           
+       624   0.78           644.40576     -674.23804      1318.6438      33557.475      37545.799      9768.1048      2.6340794      66             31           
+       636   0.795          1261.5189     -640.28451      1901.8035      48397.999      54711.069      10846.975      3.7289211      73             26           
+       648   0.81           2016.6296     -626.21255      2642.8421      67256.304      75449.927      18420.787      4.1614215      80             24           
+       660   0.825          2006.5596     -599.01913      2605.5788      66308.008      74632.901      16735.119      4.162744       86             23.5         
+       672   0.84           2327.2791     -580.11533      2907.3944      73988.757      82563.103      22803.891      4.1089493      89             25           
+       684   0.855          3417.4029     -571.22713      3988.63        101504.55      114635.25      23382.645      4.2087948      98             22           
+       696   0.87           3493.6413     -535.04618      4028.6875      102523.96      115451.26      25554.534      3.9780494      95             24           
+       708   0.885          3742.7665     -529.23683      4272.0033      108715.97      122776.56      25061.108      4.0560003      101            24           
+       720   0.9            4408.1866     -492.58977      4900.7763      124717.29      141715.08      23736.305      3.9999676      106            26.5         
+       732   0.915          4670.4317     -445.84875      5116.2805      130201.54      147898.25      25060.493      4.020127       119            23.5         
+       744   0.93           4662.738      -442.86944      5105.6075      129929.93      147659.69      24603.984      4.125123       125            22           
+       756   0.945          4685.2314     -435.84781      5121.0792      130323.66      148150.94      24425.503      4.1241271      133            19.5         
+       768   0.96           4958.3673     -393.50428      5351.8716      136196.98      154212.75      29079.258      4.1476116      130            20           
+       780   0.975          5131.5897     -389.5826       5521.1723      140505.42      159624.34      26918.217      4.173331       139            18           
+       792   0.99           7429.0579     -286.4071       7715.465       196346.83      223999.59      32212.048      4.2054015      137            25           
+       804   1.005          8611.2086     -310.62292      8921.8315      227047.01      258251.93      41706.445      5.9608112      166            14           
+       816   1.02           11746.697     -267.33519      12014.032      305738.8       344686.98      73910.728      9.1466756      166            15.5         
+       828   1.035          12837.871     -279.66507      13117.536      333821.3       377081.6       76454.673      9.1582822      187            10           
+       840   1.05           13693.39      -243.64832      13937.038      354676.38      401490.25      76314.547      9.1991552      186            12           
+       852   1.065          14800.858     -236.03295      15036.891      382665.96      434028.1       77403.263      9.1720538      190            8.5          
+       864   1.08           21972.433     -190.76314      22163.196      564019.57      643025.21      95008.774      10.338848      199            9            
+       876   1.095          26032.466     -178.57058      26211.036      667030.92      762425.66      101038.42      10.689824      203            10.5         
+       888   1.11           50245.192     -57.270097      50302.462      1280121        1478899.2      103177.36      18.764812      218            5.5          
+       900   1.125          54371.306     -136.00175      54507.308      1387127.9      1598789.4      133369.92      18.766169      219            6            
+       912   1.14           72477.173     -127.49042      72604.663      1847678        2133709.3      153993.29      18.767542      218            8            
+       924   1.155          88109.685     -145.77101      88255.456      2245966.8      2597636.1      164189.43      18.637337      208            11.5         
+       936   1.17           93500.871     -110.08363      93610.955      2382256.1      2757032.8      163940.78      18.693115      220            8            
+       948   1.185          101534.07     -27.695982      101561.76      2584592.1      2985514.1      210718.36      18.777985      221            10           
+       960   1.2            110397.23     -102.42449      110499.66      2812047.9      3246511.6      239323.05      18.777334      225            5            
+       972   1.215          111176.13     -77.202891      111253.34      2831227.9      3268203.1      243566.15      18.668896      235            6.5          
+       984   1.23           118321.32     -61.722288      118383.04      3012668        3480343.6      243593.8       18.568405      232            6            
+       996   1.245          127267.7      -52.706796      127320.41      3240110.3      3744919.7      251430.92      18.649129      237            3.5          
+      1008   1.26           132980.15     -83.398071      133063.55      3386264.6      3897192.3      358987.59      18.669891      235            4.5          
+      1020   1.275          147978.11     -37.448439      148015.56      3766770.4      4315469.9      512800.61      21.931677      240            1            
+      1032   1.29           150758.09     -55.198062      150813.29      3837968.3      4392011.7      551540.27      21.893476      228            3            
+      1044   1.305          175570.88     -70.718569      175641.6       4469810.9      5097975.6      741086.12      26.587544      241            4            
+      1056   1.32           179449        -56.954942      179505.96      4568153.1      5207080.7      775056.83      26.449022      236            3            
+      1068   1.335          184249.92     -52.904832      184302.83      4690226.1      5351201.2      767031.55      26.581417      238            5            
+      1080   1.35           195607.63     -66.859412      195674.49      4979617.6      5683950.8      799478.81      26.486771      233            6            
+      1092   1.365          242231.83     -32.137409      242263.96      6165248.6      6939924        1552341        31.93166       231            7            
+      1104   1.38           242586.27     -77.463395      242663.74      6175422.3      6940425.1      1618174.4      31.832626      234            4            
+      1116   1.395          245687.99     -58.211411      245746.2       6253866.3      7031073.5      1624361.4      31.832626      240            3            
+      1128   1.41           247489.37     -74.673906      247564.04      6300127.6      7086100.3      1618949.2      31.912402      235            5            
+      1140   1.425          265059.94     -55.340518      265115.28      6746779.8      7601084.9      1660866.9      32.064977      238            3            
+      1152   1.44           265833.36      53.857347      265779.5       6763683.2      7605266        1750900.2      31.975809      231            5            
+      1164   1.455          268030.24     -82.485041      268112.73      6823060.3      7669514.7      1780811.4      32.041496      222            8            
+      1176   1.47           271706.45     -65.849285      271772.3       6916190.8      7777353        1786894.2      32.144279      230            4            
+      1188   1.485          280178.14     -68.176983      280246.31      7131841.5      8028452.8      1792935.5      32.149918      232            6            
+      1200   1.5            284889.78     -69.188854      284958.97      7251771.4      8162041.5      1831282.8      32.230499      235            4            
+      1212   1.515          287709.67     -63.61569       287773.28      7323391.5      8244684.5      1837623        32.49991       233            6            
+      1224   1.53           287825.04     -76.165447      287901.2       7326646.8      8246354.4      1849966.4      32.53098       236            4            
+      1236   1.545          297934.49     -83.351505      298017.85      7584100        8514030        2042635.1      32.565261      236            6            
+      1248   1.56           301455.87     -44.375108      301500.24      7672721.6      8628450.6      1980226.9      32.5074        233            4.5          
+      1260   1.575          381160.12     -68.069126      381228.19      9701676.3      10996893       2002610.9      34.349592      229            10           
+      1272   1.59           399930.17     -61.730577      399991.91      10179184       11556038       1997828.2      34.354309      240            3            
+      1284   1.605          473893.77      35.308411      473858.46      12058976       13591126       2938574.4      43.146624      235            6            
+ERROR: Lost atoms: original 305 current 302
+For more information see https://docs.lammps.org/err0008 (src/thermo.cpp:526)

@@ -1,0 +1,230 @@
+LAMMPS (22 Jul 2025 - Update 4)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# Timestep test, step 1: equilibrate the system at T with a small timestep
+# and write equil.restart, the common starting point of the NVE runs of
+# nve.in (one per timestep).
+# Usage: sbatch job.sh equil.in
+# Needs: a data file (+ groups file), or a restart of your production run
+#
+# Langevin thermostat on all the atoms that move: it equilibrates every
+# degree of freedom, H vibrations included, in a few ps.
+
+# ---------- settings ----------
+variable  model     string CHANGE_ME.model-mliap_lammps.pt   # MLIP in ML-IAP format (00_basics)
+variable  elements  string "C H"    # element of each atom type, in type order
+variable  read      string data           # data: read_data (+ groups file); restart: read_restart
+variable  start     string gas.data # data file or restart file
+variable  groups    string NULL           # groups file, read if it exists (NULL: none)
+variable  bnd       string "p p p"        # boundary for read_data (a restart has its own)
+variable  fixed     string ts_none        # groups kept fixed: "layer_bot", "layer_bot layer_top" (confined
+                                          # system at constant volume), ts_none = none
+variable  T         index  300            # K (index: can be set with -var T 800)
+variable  t_eq      equal  5              # ps
+variable  dt_eq     equal  0.25           # fs
+
+# ---------- system ----------
+units           metal                     # A, ps, eV, bar, K
+atom_style      atomic
+if "${read} == restart" then "read_restart ${start}" else   "boundary ${bnd}" "read_data ${start}"
+boundary ${bnd}
+boundary p p p
+read_data ${start}
+read_data gas.data
+Reading data file ...
+  orthogonal box = (0 0 0) to (30 30 30)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  305 atoms
+  read_data CPU = 0.001 seconds
+variable        has_groups equal is_file(${groups})
+variable        has_groups equal is_file(NULL)
+if "${has_groups}" then "include ${groups}"
+
+# ---------- potential ----------
+pair_style      rebo
+pair_coeff      * * CH.rebo ${elements}
+pair_coeff      * * CH.rebo C H
+Reading rebo potential file CH.rebo with DATE: 2018-7-3
+
+# ---------- groups of the test (prefix ts_, so they do not clash with yours) ----------
+group           ts_none   empty
+0 atoms in group ts_none
+group           ts_fix    union ${fixed}
+group           ts_fix    union ts_none
+0 atoms in group ts_fix
+group           ts_md     subtract all ts_fix
+305 atoms in group ts_md
+
+# ---------- equilibration ----------
+timestep        $(v_dt_eq*0.001)          # ps
+timestep        0.0002500000000000000052          
+velocity        ts_md create ${T} 4928459 dist gaussian mom yes rot no
+velocity        ts_md create 1200 4928459 dist gaussian mom yes rot no
+velocity        ts_fix set 0.0 0.0 0.0
+fix             ts_hold   ts_fix setforce 0.0 0.0 0.0
+fix             ts_nve    ts_md  nve
+fix             ts_lgv    ts_md  langevin ${T} ${T} 0.1 48279 zero yes   # damping 0.1 ps
+fix             ts_lgv    ts_md  langevin 1200 ${T} 0.1 48279 zero yes   
+fix             ts_lgv    ts_md  langevin 1200 1200 0.1 48279 zero yes   
+
+thermo          $(round(0.05/dt))         # every 50 fs
+thermo          200         
+thermo_style    custom step time temp pe etotal press
+thermo_modify   flush yes
+run             $(round(v_t_eq/dt))
+run             20000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8
+  ghost atom cutoff = 8
+  binsize = 4, bins = 8 8 8
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair rebo, perpetual
+      attributes: full, newton on, ghost
+      pair build: full/bin/ghost
+      stencil: full/ghost/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.891 | 3.891 | 3.891 Mbytes
+   Step          Time           Temp          PotEng         TotEng         Press     
+         0   0              1200          -1007.4007     -960.24657      1883.243     
+       200   0.05           1022.7713     -991.09762     -950.90773     -323.61893    
+       400   0.1            1021.7925     -986.34361     -946.19218     -939.51581    
+       600   0.15           1149.652      -986.76099     -941.58532      1051.1402    
+       800   0.2            1153.5294     -986.28807     -940.96004      991.24655    
+      1000   0.25           1117.1387     -984.12628     -940.22822     -465.54635    
+      1200   0.3            1130.5513     -984.65799     -940.23288      171.77168    
+      1400   0.35           1130.9694     -981.52079     -937.07925      722.65903    
+      1600   0.4            1193.7128     -979.08329     -932.17625      192.87947    
+      1800   0.45           1194.4657     -980.47068     -933.53405      158.48895    
+      2000   0.5            1148.5112     -982.34954     -937.21869      325.43722    
+      2200   0.55           1206.8565     -983.23925     -935.81573      467.48012    
+      2400   0.6            1163.7481     -981.6076      -935.87802      982.67898    
+      2600   0.65           1227.953      -983.08646     -934.83394      768.06347    
+      2800   0.7            1279.1377     -982.81201     -932.54819      808.4358     
+      3000   0.75           1298.951      -981.52646     -930.48407      1387.4312    
+      3200   0.8            1202.367      -980.18446     -932.93735      696.9377     
+      3400   0.85           1268.1939     -981.46488     -931.63109      765.98144    
+      3600   0.9            1254.2809     -980.323       -931.03592      679.20703    
+      3800   0.95           1320.5181     -981.42054     -929.53067      616.86572    
+      4000   1              1299.6966     -981.67539     -930.6037      -173.83562    
+      4200   1.05           1301.278      -983.6912      -932.55737      415.2951     
+      4400   1.1            1252.3987     -983.25167     -934.03856      443.89627    
+      4600   1.15           1192.3049     -984.79491     -937.94319      1491.0401    
+      4800   1.2            1188.0699     -983.48296     -936.79765      143.91844    
+      5000   1.25           1230.1393     -982.55594     -934.21751     -4.7524365    
+      5200   1.3            1306.8053     -980.71162     -929.36059      1269.5199    
+      5400   1.35           1186.8813     -981.81879     -935.18019     -292.65774    
+      5600   1.4            1142.7268     -983.75874     -938.8552       798.78253    
+      5800   1.45           1122.5799     -983.13242     -939.02055      730.71716    
+      6000   1.5            1213.7151     -983.81036     -936.11733      657.74464    
+      6200   1.55           1277.3007     -983.02447     -932.83283     -73.495812    
+      6400   1.6            1182.8287     -981.31227     -934.83292      501.73412    
+      6600   1.65           1206.4072     -979.55006     -932.14419      746.25531    
+      6800   1.7            1221.6438     -981.31875     -933.31416      648.41548    
+      7000   1.75           1208.4117     -982.1686      -934.68396      252.44858    
+      7200   1.8            1157.575      -981.04414     -935.55713      689.19252    
+      7400   1.85           1183.7418     -983.55741     -937.04218      937.10736    
+      7600   1.9            1191.8932     -981.17263     -934.33709      631.25417    
+      7800   1.95           1220.7223     -980.00592     -932.03754      645.71782    
+      8000   2              1229.2373     -981.7401      -933.43712      1219.2304    
+      8200   2.05           1209.3462     -983.83398     -936.31262      808.49844    
+      8400   2.1            1130.5925     -981.41824     -936.99151      265.72762    
+      8600   2.15           1132.8126     -980.63287     -936.1189       221.88697    
+      8800   2.2            1172.5486     -981.13209     -935.05669      75.98561     
+      9000   2.25           1214.7088     -982.86373     -935.13165      1433.5864    
+      9200   2.3            1239.6634     -983.06959     -934.35692      728.18978    
+      9400   2.35           1232.4128     -982.63411     -934.20635     -497.57197    
+      9600   2.4            1252.1995     -983.19061     -933.98533      1598.1986    
+      9800   2.45           1197.7664     -982.47013     -935.4038       153.97788    
+     10000   2.5            1222.0628     -984.30281     -936.28175     -153.14739    
+     10200   2.55           1197.7475     -982.70868     -935.64309     -6.8948652    
+     10400   2.6            1141.9819     -984.15491     -939.28064     -510.0171     
+     10600   2.65           1261.1245     -982.85773     -933.30174      542.10154    
+     10800   2.7            1181.4051     -983.2028      -936.77939      784.15402    
+     11000   2.75           1121.5904     -981.86714     -937.79415     -297.36515    
+     11200   2.8            1115.8019     -980.93884     -937.09331     -186.8687     
+     11400   2.85           1120.6043     -984.71967     -940.68543      690.43712    
+     11600   2.9            1178.1968     -984.20611     -937.90876      273.11041    
+     11800   2.95           1158.3467     -986.15911     -940.64178      1151.0598    
+     12000   3              1221.5845     -983.16377     -935.1615       552.70147    
+     12200   3.05           1297.2488     -980.51447     -929.53897      265.2773     
+     12400   3.1            1251.876      -978.36361     -929.17103      696.29298    
+     12600   3.15           1232.1958     -977.75199     -929.33275     -754.19512    
+     12800   3.2            1214.1331     -978.48732     -930.77786      700.09096    
+     13000   3.25           1269.5588     -979.70111     -929.81369      321.80713    
+     13200   3.3            1194.9535     -980.92587     -933.97007      241.43404    
+     13400   3.35           1184.3662     -981.6756      -935.13583      347.56781    
+     13600   3.4            1132.4466     -982.00073     -937.50115      923.13413    
+     13800   3.45           1207.6668     -982.15567     -934.7003       597.80246    
+     14000   3.5            1193.4641     -981.5996      -934.70233      490.65269    
+     14200   3.55           1072.5915     -982.08661     -939.93904      814.88761    
+     14400   3.6            1156.5948     -984.05546     -938.60697      1227.6827    
+     14600   3.65           1181.529      -985.35807     -938.92979      1818.4685    
+     14800   3.7            1140.3045     -981.07416     -936.2658       1313.0778    
+     15000   3.75           1178.1063     -979.77908     -933.48529     -310.05839    
+     15200   3.8            1245.3663     -982.94135     -934.00458      302.65565    
+     15400   3.85           1247.3195     -980.81597     -931.80245      747.91683    
+     15600   3.9            1240.1229     -981.25915     -932.52842      531.3798     
+     15800   3.95           1250.4019     -979.83861     -930.70396      639.63105    
+     16000   4              1137.9557     -981.03705     -936.32099      1467.6203    
+     16200   4.05           1133.342      -982.94829     -938.41352      39.522428    
+     16400   4.1            1196.5043     -982.52178     -935.50504     -501.40995    
+     16600   4.15           1250.3113     -980.853       -931.72191      42.110191    
+     16800   4.2            1281.1137     -979.57302     -929.23155      4.3130647    
+     17000   4.25           1264.2592     -980.43183     -930.75266      1421.6827    
+     17200   4.3            1226.29       -977.66962     -929.48245      1632.2309    
+     17400   4.35           1175.5024     -980.45107     -934.25961      965.8797     
+     17600   4.4            1208.0398     -980.16001     -932.68999      1592.8327    
+     17800   4.45           1254.1969     -979.21017     -929.9264       43.412042    
+     18000   4.5            1140.0482     -980.57931     -935.78102      383.99213    
+     18200   4.55           1149.8985     -981.30987     -936.12451      179.94331    
+     18400   4.6            1181.3879     -981.69653     -935.2738       314.6013     
+     18600   4.65           1152.347      -984.78967     -939.5081       22.135692    
+     18800   4.7            1135.08       -983.03322     -938.43015      1233.4935    
+     19000   4.75           1163.8186     -984.11423     -938.38188      339.50543    
+     19200   4.8            1148.1451     -983.76064     -938.64418      212.35697    
+     19400   4.85           1189.3413     -983.88426     -937.149        1792.2998    
+     19600   4.9            1217.6804     -983.16082     -935.31196      1994.671     
+     19800   4.95           1197.9105     -982.9345      -935.86251      153.77643    
+     20000   5              1242.535      -984.25601     -935.43049      1316.6347    
+Loop time of 4.86349 on 1 procs for 20000 steps with 305 atoms
+
+Performance: 88.825 ns/day, 0.270 hours/ns, 4112.277 timesteps/s, 1.254 Matom-step/s
+98.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 3.8817     | 3.8817     | 3.8817     |   0.0 | 79.81
+Neigh   | 0.53671    | 0.53671    | 0.53671    |   0.0 | 11.04
+Comm    | 0.074276   | 0.074276   | 0.074276   |   0.0 |  1.53
+Output  | 0.0052924  | 0.0052924  | 0.0052924  |   0.0 |  0.11
+Modify  | 0.33747    | 0.33747    | 0.33747    |   0.0 |  6.94
+Other   |            | 0.02803    |            |       |  0.58
+
+Nlocal:            305 ave         305 max         305 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            821 ave         821 max         821 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         7886 ave        7886 max        7886 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 7886
+Ave neighs/atom = 25.855738
+Neighbor list builds = 480
+Dangerous builds = 0
+
+# the restart keeps your groups, not the fixes and the ts_ groups of this input
+unfix           ts_lgv
+unfix           ts_nve
+unfix           ts_hold
+group           ts_md delete
+group           ts_fix delete
+group           ts_none delete
+write_restart   equil.restart
+System init for write_restart ...
+Total wall time: 0:00:04
