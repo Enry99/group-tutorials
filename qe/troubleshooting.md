@@ -57,6 +57,14 @@ Old `lda_plus_u`/`Hubbard_U(i)` variables. Use the `HUBBARD` card (05).
 `ase.io.read` on a `.pwi` with `ibrav ≠ 0`. Use `tools/qe2xyz.py` (any
 ibrav), or read the `.pwo`.
 
+### `invalid number of pools, out of range` (routine mp_start_pools)
+More k-point pools than MPI ranks, e.g. `-nk 2` on 1 GPU (our jobscripts
+run one rank per GPU). The companion error `invalid number of pools,
+parent_nproc /= nproc_pool * npool` means the ranks are not a multiple
+of the pools (e.g. `-nk 3` on 4 GPUs). Use `-nk 1` with `pw_1gpu.sh` and
+`pw_loop.sh`, and 1, 2 or 4 with `pw_node.sh` (one node, 4 GPUs). Both
+messages are in `Modules/mp_pools.f90` of QE 7.3.1.
+
 ---
 ## Memory errors
 
